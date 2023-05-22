@@ -14,7 +14,7 @@ Yet another AI-enabled research and chat interface, with an emphasis on organizi
 - [ ] Search and ask questions of all your documents or just a subset
 - [ ] Document summarization
 - [ ] Summarization and notable points across multiple related documents
-- [ ] Chatbot against OpenAI or local MPT-7b
+- [ ] Chatbot against OpenAI or local MPT-7b, RWKV, etc.
 - [ ] Multiple parallel chat threads
 - [ ] Chats are searchable like any other document
 - [ ] Rewind and branch chat history
