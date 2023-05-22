@@ -4,12 +4,14 @@
 
   export let data;
 
-  const { form, constraints, enhance, errors, delayed } = superForm(data.form, {
+  const { form, constraints, enhance, errors, delayed, capture, restore } = superForm(data.form, {
     invalidateAll: false,
     resetForm: false,
     taintedMessage: false,
     timeoutMs: 30000,
   });
+
+  export const snapshot = { capture, restore };
 
   function addMessage(role: string, message: string) {
     data.messages = [...data.messages, { role, message }];
