@@ -4,7 +4,7 @@ ENV_FILE=$(dirname $(realpath $0))/../.env
 
 source $ENV_FILE
 
-DATABASE_PASSWORD="${DATABASE_PASSWORD:-$(openssl rand -base64 32)}"
+DATABASE_PASSWORD="${DATABASE_PASSWORD:-$(openssl rand 32 | shasum -b | cut -d\  -f1)}"
 DATABASE_USER=${DATABASE_USER:-maiven}
 
 # A database URL that works to connect as a superuser.
