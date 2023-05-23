@@ -1,5 +1,6 @@
 init:
   just download-models
+  scripts/bootstrap_db.sh
 
 web-dev:
   cd web && pnpm dev --host 0.0.0.0
