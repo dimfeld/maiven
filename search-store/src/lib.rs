@@ -1,14 +1,13 @@
-pub fn add(left: usize, right: usize) -> usize {
-    left + right
+mod models;
+
+use std::path::PathBuf;
+
+use sqlx::PgPool;
+
+pub struct SearchStore {
+    pool: PgPool,
+    model_cache_dir: PathBuf,
+    content_dir: PathBuf,
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
-}
+// load models

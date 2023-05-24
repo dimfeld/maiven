@@ -1,4 +1,5 @@
 [workspace]
 members = [
+  "model-api",
   "search-store",
 ]
