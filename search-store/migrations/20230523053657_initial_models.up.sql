@@ -3,7 +3,7 @@ INSERT INTO models (id, name, category, params)
   (1, 'all-mpnet-base-v2', 'bi-encoder',
     jsonb_build_object(
       'code', 'rust-bert',
-      'location', 'huggingface:sentence-transformers/all-mpnet-base-v2'
+      'location', 'huggingface:diptanuc/all-mpnet-base-v2'
     )
   ),
   (2, 'ms-marco-MiniLM-L-6-v2', 'cross-encoder',
@@ -58,6 +58,12 @@ INSERT INTO models (id, name, category, params)
       'code', 'ggml',
       'model', 'gpt-neox',
       'location', 'https://huggingface.co/keldenl/RedPajama-INCITE-Instruct-7B-v0.1-GGML/resolve/main/rp-instruct-7B-v0.1-ggml-model-q4_0.bin'
+    )
+  ),
+  (11, 'all-MiniLM-L6-v2', 'bi-encoder',
+    jsonb_build_object(
+      'code', 'rust-bert',
+      'location', 'rust-bert',
     )
   )
   ;
