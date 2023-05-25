@@ -224,8 +224,8 @@ fn model_from_config(
     // Setup pooling layer
 
     let pooling_config = PoolingConfig::from_file(pooling_config_resource.get_local_path()?);
-    let pooling_layer = Pooling::new(pooling_config);
     let mut embeddings_dim = pooling_config.word_embedding_dimension;
+    let pooling_layer = Pooling::new(pooling_config);
 
     // Setup dense layer
 
