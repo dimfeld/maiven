@@ -282,7 +282,7 @@ fn get_model_type(base_path: &Path) -> Result<ModelType, ModelError> {
         "bart" => ModelType::Bart,
         "bert" => ModelType::Bert,
         "deberta" => ModelType::Deberta,
-        "debertav2" => ModelType::DebertaV2,
+        "deberta-v2" => ModelType::DebertaV2,
         "distilbert" => ModelType::DistilBert,
         "electra" => ModelType::Electra,
         "fnet" => ModelType::FNet,

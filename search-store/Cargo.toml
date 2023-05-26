@@ -33,7 +33,8 @@ git = "https://github.com/rustformers/llm"
 branch = "main"
 
 [features]
-# Run tests that download files on every run
+# Run tests that download files on every run. Some tests not under this feature may still download models
+# if needed, but they will only do so once.
 test-download = []
 
 [dev-dependencies]
