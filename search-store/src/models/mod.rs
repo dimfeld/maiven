@@ -5,8 +5,8 @@ pub use self::error::ModelError;
 pub mod bi_encoder;
 mod download;
 pub mod error;
-mod huggingface;
 mod rust_bert_sentence_embeddings;
+pub mod transformers;
 
 pub struct ChatModel {}
 

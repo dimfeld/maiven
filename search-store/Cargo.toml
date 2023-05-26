@@ -23,6 +23,7 @@ serde_json = "1.0.96"
 sqlx = { version = "0.6.3", features = ["time", "postgres", "runtime-tokio-native-tls", "uuid", "json"] }
 tantivy = "0.19.2"
 tch = "0.13.0"
+tempfile = "3.5.0"
 thiserror = "1.0.40"
 tokio = { version = "1.28.1", features = ["tracing", "full"] }
 tracing = "0.1.37"
@@ -30,3 +31,7 @@ tracing = "0.1.37"
 [dependencies.llm]
 git = "https://github.com/rustformers/llm"
 branch = "main"
+
+[features]
+# Run tests that download files
+test-download = []

@@ -10,6 +10,8 @@ use thiserror::Error;
 pub enum DownloadError {
     #[error("Failed writing to disk: {0}")]
     IoError(#[from] std::io::Error),
+    #[error("Failed writing to disk: {0}")]
+    JsonWriteError(serde_json::Error),
     #[error("HTTP error: {0}")]
     ReqwestError(#[from] reqwest::Error),
     #[error("Unsupported location type")]
@@ -34,27 +36,24 @@ impl ModelCache {
         }
     }
 
+    /// Return the directory used to store the models
     pub fn get_cache_path(&self) -> &Path {
         &self.cache_path
     }
 
+    /// Calculate the directory that will be used for a particular model, given its source.
     pub fn get_cache_path_for_model(&self, model_remote: &str) -> PathBuf {
         let model_remote = model_remote.replace([':', '/', '\\'], "_");
         self.cache_path.join(model_remote)
     }
 
-    pub fn needs_download(&self, model: &str) -> bool {
-        let path = self.get_cache_path_for_model(model);
+    pub fn needs_download(&self, model_remote: &str) -> bool {
+        let path = self.get_cache_path_for_model(model_remote);
         if !path.exists() {
             return true;
         }
 
-        let manifest_path = path.join("manifest.json");
-        let Ok(file) =  std::fs::File::open(manifest_path) else {
-            return false;
-        };
-
-        let Ok(manifest) = serde_json::from_reader::<_, Manifest>(file) else {
+        let Some(manifest) = read_manifest(&path) else {
             return false;
         };
 
@@ -69,22 +68,22 @@ impl ModelCache {
     }
 
     /// Check if the files for this model have been downloaded, and download them if needed.
-    pub fn download_if_needed(&self, model: &str) -> Result<PathBuf, Report<DownloadError>> {
-        let path = self.get_cache_path_for_model(model);
+    pub fn download_if_needed(&self, model_remote: &str) -> Result<PathBuf, Report<DownloadError>> {
+        let path = self.get_cache_path_for_model(model_remote);
         if path.exists() {
             return Ok(path);
         }
 
-        self.download(model, &path)?;
+        self.download(model_remote, &path)?;
 
         Ok(path)
     }
 
     /// Delete any existing cached files and redownload them.
-    pub fn force_download(&self, model: &str) -> Result<PathBuf, Report<DownloadError>> {
-        let path = self.get_cache_path_for_model(model);
+    pub fn force_download(&self, model_remote: &str) -> Result<PathBuf, Report<DownloadError>> {
+        let path = self.get_cache_path_for_model(model_remote);
 
-        self.download(model, &path)?;
+        self.download(model_remote, &path)?;
 
         Ok(path)
     }
@@ -98,17 +97,31 @@ impl ModelCache {
             std::fs::remove_dir_all(destination_path).map_err(DownloadError::from)?;
         }
 
+        let manifest_files;
+
         std::fs::create_dir_all(destination_path).map_err(DownloadError::from)?;
         if let Some(model_name) = model_remote.strip_prefix("huggingface:") {
-            huggingface::download_model(&self.client, model_name, destination_path)?;
+            manifest_files =
+                huggingface::download_model(&self.client, model_name, destination_path)?;
         } else if model_remote.starts_with("http:") || model_remote.starts_with("https:") {
             let filename = model_remote.split('/').last().unwrap();
             let path = destination_path.join(filename);
             download_file(&self.client, model_remote, &path)?;
+            manifest_files = vec![filename.to_string()];
         } else {
             return Err(Report::new(DownloadError::UnknownLocationType))
                 .attach_printable_lazy(|| model_remote.to_string());
         }
+
+        let manifest = Manifest {
+            files: manifest_files,
+        };
+
+        let manifest_path = destination_path.join("manifest.json");
+        let mut manifest_file =
+            std::fs::File::create(manifest_path).map_err(DownloadError::from)?;
+        serde_json::to_writer(&mut manifest_file, &manifest)
+            .map_err(DownloadError::JsonWriteError)?;
 
         Ok(())
     }
@@ -125,4 +138,99 @@ fn download_file(client: &Client, url: &str, destination: &Path) -> Result<(), D
     let mut file = std::fs::File::create(destination)?;
     std::io::copy(&mut response, &mut file)?;
     Ok(())
+}
+
+fn read_manifest(dir: &Path) -> Option<Manifest> {
+    let manifest_path = dir.join("manifest.json");
+    let file = std::fs::File::open(manifest_path).ok()?;
+    serde_json::from_reader::<_, Manifest>(file).ok()
+}
+
+#[cfg(all(test, feature = "test-download"))]
+mod test {
+    use super::ModelCache;
+
+    #[test]
+    fn http() {
+        let base_dir = tempfile::tempdir().expect("Creating temp dir");
+        let model_cache = ModelCache::new(base_dir.path().to_path_buf());
+
+        let model_remote =
+            "https://huggingface.co/ggerganov/ggml/resolve/main/ggml-model-gpt-2-117M.bin";
+
+        let needs_download = model_cache.needs_download(model_remote);
+        assert!(needs_download, "needs_download should be initially true");
+
+        let path = model_cache
+            .download_if_needed(model_remote)
+            .expect("Downloading model");
+
+        let needs_download = model_cache.needs_download(model_remote);
+        assert!(
+            !needs_download,
+            "needs_download should be false after download"
+        );
+
+        let full_path = path.join("ggml-model-gpt-2-117M.bin");
+        assert!(full_path.exists(), "Path should exist after download");
+
+        let manifest = super::read_manifest(&path).expect("Reading manifest");
+        assert_eq!(
+            manifest.files,
+            vec!["ggml-model-gpt-2-117M.bin".to_string()],
+            "manifest matches expected list"
+        );
+    }
+
+    #[test]
+    fn huggingface() {
+        let base_dir = tempfile::tempdir().expect("Creating temp dir");
+        let model_cache = ModelCache::new(base_dir.path().to_path_buf());
+        let model_remote = "huggingface:sentence-transformers/all-MiniLM-L6-v2";
+
+        let needs_download = model_cache.needs_download(model_remote);
+        assert!(needs_download, "needs_download should be initially true");
+
+        let path = model_cache
+            .download_if_needed(model_remote)
+            .expect("Downloading model");
+
+        let needs_download = model_cache.needs_download(model_remote);
+        assert!(
+            !needs_download,
+            "needs_download should be false after download"
+        );
+
+        let manifest = super::read_manifest(&path).expect("Reading manifest");
+        // This isn't all the files, but enough to check that it's working.
+        for file in [
+            "1_Pooling/config.json",
+            "config.json",
+            "rust_model.ot",
+            "tokenizer.json",
+            "vocab.txt",
+        ] {
+            let full_path = path.join(file);
+            assert!(
+                full_path.exists(),
+                "file {} should exist after download",
+                file
+            );
+            assert!(
+                manifest.files.contains(&file.to_string()),
+                "manifest should contain {}",
+                file
+            );
+        }
+
+        let bin_full_path = path.join("pytorch_model.bin");
+        assert!(
+            !bin_full_path.exists(),
+            "pickle files should not be downloaded"
+        );
+        assert!(
+            !manifest.files.contains(&"pytorch_model.bin".to_string()),
+            "manifest should not contain pytorch_model.bin"
+        );
+    }
 }

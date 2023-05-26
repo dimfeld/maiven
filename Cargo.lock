@@ -1270,6 +1270,7 @@ dependencies = [
  "sqlx",
  "tantivy",
  "tch",
+ "tempfile",
  "thiserror",
  "tokio",
  "tracing",

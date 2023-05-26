@@ -63,7 +63,7 @@ INSERT INTO models (id, name, category, params)
   (11, 'all-MiniLM-L6-v2', 'bi-encoder',
     jsonb_build_object(
       'code', 'rust-bert',
-      'location', 'rust-bert',
+      'location', 'huggingface:sentence-transformers/all-MiniLM-L6-v2',
     )
   )
   ;

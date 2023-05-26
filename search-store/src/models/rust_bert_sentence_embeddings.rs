@@ -18,7 +18,7 @@ use rust_bert::{
 use rust_tokenizers::{tokenizer::TruncationStrategy, TokenizedInput};
 use tch::{nn, Tensor};
 
-use super::{huggingface::read_model_config, ModelError};
+use super::{transformers::read_model_config, ModelError};
 
 pub struct SentenceEmbeddingsTokenizer {
     sentence_bert_config: SentenceEmbeddingsSentenceBertConfig,
