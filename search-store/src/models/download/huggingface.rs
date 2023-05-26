@@ -1,17 +1,10 @@
 use error_stack::{IntoReport, Report, ResultExt};
 use reqwest::blocking::Client;
 use serde::Deserialize;
-use thiserror::Error;
 
 use std::path::Path;
 
-#[derive(Error, Debug)]
-pub enum DownloadError {
-    #[error("Failed writing to disk: {0}")]
-    IoError(#[from] std::io::Error),
-    #[error("HTTP error: {0}")]
-    ReqwestError(#[from] reqwest::Error),
-}
+use super::DownloadError;
 
 /// The simplest model config possible that gives us the model type.
 #[derive(Deserialize)]
@@ -54,9 +47,12 @@ pub fn get_model_info(
 }
 
 /// Download relevant files from a Huggingface repository.
-pub fn download_model(model_name: &str, destination: &Path) -> Result<(), Report<DownloadError>> {
-    let client = Client::new();
-    let model_info = get_model_info(&client, model_name)
+pub fn download_model(
+    client: &Client,
+    model_name: &str,
+    destination: &Path,
+) -> Result<(), Report<DownloadError>> {
+    let model_info = get_model_info(client, model_name)
         .into_report()
         .attach_printable_lazy(|| format!("Fetching information for model {model_name}"))?;
 
@@ -73,23 +69,10 @@ pub fn download_model(model_name: &str, destination: &Path) -> Result<(), Report
             rfilename = sibling.rfilename
         );
 
-        download_file(&client, &url, &destination.join(&sibling.rfilename))
+        super::download_file(&client, &url, &destination.join(&sibling.rfilename))
             .into_report()
             .attach_printable(sibling.rfilename)?;
     }
 
-    Ok(())
-}
-
-/// Download a single file, creating directories if needed
-fn download_file(client: &Client, url: &str, destination: &Path) -> Result<(), DownloadError> {
-    let dir = destination
-        .parent()
-        .expect("Path has a directory and filename");
-    std::fs::create_dir_all(dir)?;
-
-    let mut response = client.get(url).send()?;
-    let mut file = std::fs::File::create(destination)?;
-    std::io::copy(&mut response, &mut file)?;
     Ok(())
 }

@@ -266,7 +266,6 @@ pub fn create_model(
     model_name: &str,
 ) -> Result<(SentenceEmbeddingsTokenizer, SentenceEmbeddingsEncoder), ModelError> {
     let config = model_config(base_path, model_name)?;
-
     model_from_config(config).change_context(ModelError::LoadingError)
 }
 
