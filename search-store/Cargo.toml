@@ -33,5 +33,8 @@ git = "https://github.com/rustformers/llm"
 branch = "main"
 
 [features]
-# Run tests that download files
+# Run tests that download files on every run
 test-download = []
+
+[dev-dependencies]
+dotenvy = "0.15.7"

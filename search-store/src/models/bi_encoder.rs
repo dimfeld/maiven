@@ -35,8 +35,8 @@ struct WorkerEncodeMessage {
 }
 
 impl BiEncoderModel {
-    pub fn new(base_dir: &Path, model_name: &str) -> Result<Self, Report<ModelError>> {
-        let (tokenizer, model) = create_model(base_dir, model_name)?;
+    pub fn new(model_dir: &Path) -> Result<Self, Report<ModelError>> {
+        let (tokenizer, model) = create_model(model_dir)?;
 
         let (tx, rx) = flume::bounded(10);
         let num_dimensions = model.embeddings_dim;
@@ -101,5 +101,25 @@ fn worker_thread(worker_rx: flume::Receiver<WorkerMessage>, model: SentenceEmbed
             }
             WorkerMessage::Close => break,
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::models::download::ModelCache;
+
+    #[test]
+    fn test_model() {
+        dotenvy::dotenv().ok();
+        let cache = ModelCache::from_env().expect("Creating model cache");
+        let model_path = cache
+            .download_if_needed("huggingface:sentence-transformers/all-MiniLM-L6-v2")
+            .expect("Downloading model");
+        let model = super::BiEncoderModel::new(&model_path).expect("loading model");
+        let encoding = model
+            .encode(&["hello world", "goodbye world"])
+            .expect("encoding");
+        assert_eq!(encoding.len(), 2, "one encoding per input");
+        assert_eq!(encoding[0].len(), 384, "length of encoding vector");
     }
 }

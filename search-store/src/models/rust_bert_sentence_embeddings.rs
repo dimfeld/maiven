@@ -262,10 +262,9 @@ fn model_from_config(
 }
 
 pub fn create_model(
-    base_path: &Path,
-    model_name: &str,
+    model_path: &Path,
 ) -> Result<(SentenceEmbeddingsTokenizer, SentenceEmbeddingsEncoder), ModelError> {
-    let config = model_config(base_path, model_name)?;
+    let config = model_config(model_path)?;
     model_from_config(config).change_context(ModelError::LoadingError)
 }
 
@@ -274,51 +273,47 @@ fn local_resource(base_path: &Path, file: &str) -> Box<dyn ResourceProvider + Se
 }
 
 fn get_model_type(base_path: &Path) -> Result<ModelType, ModelError> {
-    let model_type = read_model_config(&base_path)
+    let model_type = read_model_config(base_path)
         .into_report()
         .change_context(ModelError::LoadingError)?;
 
     let transformer_type = match model_type.as_str() {
-        "bert" => ModelType::Bert,
+        "albert" => ModelType::Albert,
         "bart" => ModelType::Bart,
-        "distilbert" => ModelType::DistilBert,
+        "bert" => ModelType::Bert,
         "deberta" => ModelType::Deberta,
         "debertav2" => ModelType::DebertaV2,
-        "roberta" => ModelType::Roberta,
-        "xlm-roberta" => ModelType::XLMRoberta,
+        "distilbert" => ModelType::DistilBert,
         "electra" => ModelType::Electra,
-        "marian" => ModelType::Marian,
-        "mobilebert" => ModelType::MobileBert,
-        "t5" => ModelType::T5,
-        "albert" => ModelType::Albert,
-        "xlnet" => ModelType::XLNet,
-        "gpt2" => ModelType::GPT2,
-        "openai-gpt" => ModelType::OpenAiGpt,
-        "reformer" => ModelType::Reformer,
-        "longformer" => ModelType::Longformer,
-        "prophetnet" => ModelType::ProphetNet,
-        "pegasus" => ModelType::Pegasus,
-        "gpt_neo" => ModelType::GPTNeo,
-        "mobilebert" => ModelType::MBart,
-        "m2m_100" => ModelType::M2M100,
         "fnet" => ModelType::FNet,
+        "gpt2" => ModelType::GPT2,
+        "gpt_neo" => ModelType::GPTNeo,
+        "longformer" => ModelType::Longformer,
+        "m2m_100" => ModelType::M2M100,
+        "marian" => ModelType::Marian,
+        "mbart" => ModelType::MBart,
+        "mobilebert" => ModelType::MobileBert,
+        "openai-gpt" => ModelType::OpenAiGpt,
+        "pegasus" => ModelType::Pegasus,
+        "prophetnet" => ModelType::ProphetNet,
+        "reformer" => ModelType::Reformer,
+        "roberta" => ModelType::Roberta,
+        "t5" => ModelType::T5,
+        "xlm-roberta" => ModelType::XLMRoberta,
+        "xlnet" => ModelType::XLNet,
         _ => return Err(ModelError::UnknownModelType(model_type)).into_report(),
     };
 
     Ok(transformer_type)
 }
 
-fn model_config(
-    base_path: &Path,
-    model_name: &str,
-) -> Result<SentenceEmbeddingsConfig, ModelError> {
-    let base_path = base_path.join(model_name);
-    let lr = |file: &str| local_resource(&base_path, file);
+fn model_config(path: &Path) -> Result<SentenceEmbeddingsConfig, ModelError> {
+    let lr = |file: &str| local_resource(path, file);
 
-    let transformer_type = get_model_type(&base_path)?;
+    let transformer_type = get_model_type(path)?;
 
-    let has_dense = base_path.join("2_Dense").exists();
-    let has_merges = base_path.join("merges.txt").exists();
+    let has_dense = path.join("2_Dense").exists();
+    let has_merges = path.join("merges.txt").exists();
 
     Ok(SentenceEmbeddingsConfig {
         modules_config_resource: lr("modules.json"),

@@ -1253,6 +1253,7 @@ name = "maiven-search-store"
 version = "0.1.0"
 dependencies = [
  "ahash 0.8.3",
+ "dotenvy",
  "error-stack",
  "flume",
  "itertools",

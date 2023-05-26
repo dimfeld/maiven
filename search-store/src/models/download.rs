@@ -3,7 +3,10 @@ mod huggingface;
 use error_stack::{Report, ResultExt};
 use reqwest::blocking::Client;
 use serde::{Deserialize, Serialize};
-use std::path::{Path, PathBuf};
+use std::{
+    env::VarError,
+    path::{Path, PathBuf},
+};
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -34,6 +37,11 @@ impl ModelCache {
             cache_path,
             client: Client::new(),
         }
+    }
+
+    pub fn from_env() -> Result<Self, VarError> {
+        let dir = std::env::var("MODEL_DIR")?;
+        Ok(Self::new(PathBuf::from(dir)))
     }
 
     /// Return the directory used to store the models

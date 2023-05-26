@@ -47,6 +47,8 @@ pub struct ModelTypeAndLocation {
 
 pub struct ChatModel {}
 
+/// Both instruct and complete models fall under `CompletionModel`. The difference is only to inform the
+/// caller in how to prompt the model.
 pub struct CompletionModel {}
 
 /// Use a chat or completion model in a generic way.
