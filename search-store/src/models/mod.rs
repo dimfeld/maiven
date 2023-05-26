@@ -1,4 +1,4 @@
-use std::convert::Infallible;
+use serde::{Deserialize, Serialize};
 
 pub use self::error::ModelError;
 
@@ -7,6 +7,43 @@ mod download;
 pub mod error;
 mod rust_bert_sentence_embeddings;
 pub mod transformers;
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ModelDefinition {
+    pub name: String,
+    pub category: ModelCategory,
+    pub params: ModelParams,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "kebab-case")]
+pub enum ModelCategory {
+    Chat,
+    Instruct,
+    Complete,
+    CrossEncoder,
+    BiEncoder,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(tag = "code", rename_all = "kebab-case")]
+pub enum ModelParams {
+    OpenaiChat,
+    OpenaiCompletions,
+    Ggml(ModelTypeAndLocation),
+    RustBert(ModelLocation),
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ModelLocation {
+    location: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ModelTypeAndLocation {
+    model: String,
+    location: String,
+}
 
 pub struct ChatModel {}
 
