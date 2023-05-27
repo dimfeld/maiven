@@ -1,22 +1,26 @@
 use serde::{Deserialize, Serialize};
 
+use sqlx_transparent_json_decode::sqlx_json_decode;
+
 pub use self::error::ModelError;
 
 pub mod bi_encoder;
-mod download;
+pub mod download;
 pub mod error;
 mod rust_bert_sentence_embeddings;
 pub mod transformers;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ModelDefinition {
+    pub id: i32,
     pub name: String,
     pub category: ModelCategory,
     pub params: ModelParams,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, sqlx::Type)]
 #[serde(rename_all = "kebab-case")]
+#[sqlx(rename_all = "kebab-case")]
 pub enum ModelCategory {
     Chat,
     Instruct,
@@ -33,6 +37,8 @@ pub enum ModelParams {
     Ggml(ModelTypeAndLocation),
     RustBert(ModelLocation),
 }
+
+sqlx_json_decode!(ModelParams);
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ModelLocation {

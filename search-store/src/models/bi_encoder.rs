@@ -11,6 +11,7 @@ use super::{
 };
 
 pub struct BiEncoderModel {
+    pub name: String,
     tokenizer: SentenceEmbeddingsTokenizer,
     num_dimensions: i64,
 
@@ -35,7 +36,7 @@ struct WorkerEncodeMessage {
 }
 
 impl BiEncoderModel {
-    pub fn new(model_dir: &Path) -> Result<Self, Report<ModelError>> {
+    pub fn new(name: String, model_dir: &Path) -> Result<Self, Report<ModelError>> {
         let (tokenizer, model) = create_model(model_dir)?;
 
         let (tx, rx) = flume::bounded(10);
@@ -43,6 +44,7 @@ impl BiEncoderModel {
         let worker_thread = std::thread::spawn(|| worker_thread(rx, model));
 
         Ok(Self {
+            name,
             tokenizer,
             num_dimensions,
             worker_tx: tx,
@@ -115,7 +117,8 @@ mod test {
         let model_path = cache
             .download_if_needed("huggingface:sentence-transformers/all-MiniLM-L6-v2")
             .expect("Downloading model");
-        let model = super::BiEncoderModel::new(&model_path).expect("loading model");
+        let model =
+            super::BiEncoderModel::new("test".to_string(), &model_path).expect("loading model");
         let encoding = model
             .encode(&["hello world", "goodbye world"])
             .expect("encoding");
