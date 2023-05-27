@@ -124,7 +124,7 @@ impl ModelCache {
             manifest_files =
                 huggingface::download_model(&self.client, model_name, destination_path)?;
         } else if model_remote.starts_with("http:") || model_remote.starts_with("https:") {
-            let filename = model_remote.split('/').last().unwrap();
+            let filename = model_remote.rsplit('/').next().unwrap();
             let path = destination_path.join(filename);
             download_file(&self.client, model_remote, &path)?;
             manifest_files = vec![filename.to_string()];

@@ -46,10 +46,12 @@ pub fn download_model(
     let mut files = Vec::new();
 
     for sibling in model_info.siblings {
-        if !sibling.rfilename.ends_with(".json")
-            && !sibling.rfilename.ends_with(".ot")
-            && !sibling.rfilename.ends_with(".txt")
-        {
+        let extension = match sibling.rfilename.rsplit('.').next() {
+            Some(ext) => ext,
+            None => continue,
+        };
+
+        if !["json", "md", "ot", "txt"].contains(&extension) {
             continue;
         }
 
