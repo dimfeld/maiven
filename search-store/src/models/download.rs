@@ -20,6 +20,8 @@ pub enum DownloadError {
     ReqwestError(#[from] reqwest::Error),
     #[error("Unsupported location type")]
     UnknownLocationType,
+    #[error("Invalid location {0}")]
+    InvalidLocation(String),
 }
 
 impl DownloadError {
@@ -124,7 +126,9 @@ impl ModelCache {
             manifest_files =
                 huggingface::download_model(&self.client, model_name, destination_path)?;
         } else if model_remote.starts_with("http:") || model_remote.starts_with("https:") {
-            let filename = model_remote.rsplit('/').next().unwrap();
+            let filename = model_remote.rsplit('/').next().ok_or_else(|| {
+                Report::new(DownloadError::InvalidLocation(model_remote.to_string()))
+            })?;
             let path = destination_path.join(filename);
             download_file(&self.client, model_remote, &path)?;
             manifest_files = vec![filename.to_string()];
