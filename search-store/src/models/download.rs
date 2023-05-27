@@ -1,5 +1,6 @@
 mod huggingface;
 
+use backon::{BlockingRetryable, ExponentialBuilder};
 use error_stack::{Report, ResultExt};
 use reqwest::blocking::Client;
 use serde::{Deserialize, Serialize};
@@ -19,6 +20,17 @@ pub enum DownloadError {
     ReqwestError(#[from] reqwest::Error),
     #[error("Unsupported location type")]
     UnknownLocationType,
+}
+
+impl DownloadError {
+    pub fn retryable(&self) -> bool {
+        match self {
+            DownloadError::ReqwestError(e) => {
+                !e.is_status() || e.status().map(|s| s.is_server_error()).unwrap_or(false)
+            }
+            _ => false,
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize)]
@@ -142,10 +154,19 @@ fn download_file(client: &Client, url: &str, destination: &Path) -> Result<(), D
         .expect("Path has a directory and filename");
     std::fs::create_dir_all(dir)?;
 
-    let mut response = client.get(url).send()?;
-    let mut file = std::fs::File::create(destination)?;
-    std::io::copy(&mut response, &mut file)?;
-    Ok(())
+    let dl = || -> Result<(), DownloadError> {
+        let mut response = client.get(url).send()?.error_for_status()?;
+
+        let mut file = std::fs::File::create(destination).map_err(DownloadError::from)?;
+        std::io::copy(&mut response, &mut file).map_err(DownloadError::from)?;
+        Ok(())
+    };
+
+    let retry = dl
+        .retry(&ExponentialBuilder::default().with_min_delay(std::time::Duration::from_secs(5)))
+        .when(|e| e.retryable());
+
+    retry.call()
 }
 
 fn read_manifest(dir: &Path) -> Option<Manifest> {
