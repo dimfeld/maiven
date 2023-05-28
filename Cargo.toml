@@ -3,3 +3,6 @@ members = [
   "model-api",
   "search-store",
 ]
+
+[profile.dev.package.ggml-sys]
+opt-level = 3

@@ -1,5 +1,6 @@
 init:
   mkdir -p models
+  rye sync
   scripts/bootstrap_db.sh
 
 web-dev:

@@ -1,0 +1,2 @@
+[env]
+LIBTORCH={ value = ".venv/lib/python3.11/site-packages/torch", relative = true }
