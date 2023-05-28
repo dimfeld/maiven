@@ -67,9 +67,9 @@ COMMENT ON COLUMN items.external_id IS 'The location where the item was found';
 COMMENT ON COLUMN items.processed_content IS 'The content of the item after processing, e.g. extracted text from a PDF';
 
 CREATE TABLE item_chunks (
-  item_id BIGINT NOT NULL,
+  item_id BIGINT NOT NULL REFERENCES items(id) ON DELETE CASCADE,
   sequence_num INTEGER NOT NULL,
-  model_id INTEGER NOT NULL,
+  model_id INTEGER NOT NULL REFERENCES models(id) ON DELETE CASCADE,
   start_idx INTEGER NOT NULL,
   end_idx INTEGER NOT NULL,
   embedding BYTEA NOT NULL,
@@ -80,4 +80,46 @@ COMMENT ON COLUMN item_chunks.sequence_num IS 'Which numbered chunk this is in t
 COMMENT ON COLUMN item_chunks.start_idx IS 'The index of the first character of the chunk in the document';
 COMMENT ON COLUMN item_chunks.end_idx IS 'The index of the last character of the chunk in the document';
 
+CREATE TABLE chat_system_messages (
+  id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  name TEXT,
+  message TEXT NOT NULL,
+  hidden BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE chat_sessions (
+  id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  name TEXT,
+  system_message_id BIGINT REFERENCES chat_system_messages(id) ON DELETE SET NULL,
+  parent_session BIGINT REFERENCES chat_sessions(id) ON DELETE SET NULL,
+  hidden BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+COMMENT ON COLUMN chat_sessions.system_message_id IS 'The system message for this chat session';
+COMMENT ON COLUMN chat_sessions.parent_session IS 'If this chat session branched from a message in another session, this is the parent session.';
+
+CREATE TABLE chat_summaries (
+  id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  parent_id BIGINT REFERENCES chat_summaries(id) ON DELETE CASCADE,
+  session_id BIGINT NOT NULL REFERENCES chat_sessions(id) ON DELETE CASCADE,
+  summary TEXT NOT NULL,
+  start_message_id BIGINT NOT NULL,
+  end_message_id BIGINT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE chat_messages (
+  id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  session_id BIGINT NOT NULL REFERENCES chat_sessions(id) ON DELETE CASCADE,
+  parent_id BIGINT REFERENCES chat_messages(id) ON DELETE CASCADE,
+  important BOOLEAN NOT NULL DEFAULT FALSE,
+  user_message TEXT NOT NULL,
+  ai_message TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+COMMENT ON COLUMN chat_messages.important IS 'If this message is marked as important and should be given preference as the context growws longer.';
 
