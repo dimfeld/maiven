@@ -1,2 +1,3 @@
 [env]
 LIBTORCH={ value = ".venv/lib/python3.11/site-packages/torch", relative = true }
+DYLD_LIBRARY_PATH={ value = ".venv/lib/python3.11/site-packages/torch/lib", relative = true }
