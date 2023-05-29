@@ -5,8 +5,10 @@ use sqlx_transparent_json_decode::sqlx_json_decode;
 pub use self::error::ModelError;
 
 pub mod bi_encoder;
+pub mod chat;
 pub mod download;
 pub mod error;
+mod ggml;
 mod rust_bert_sentence_embeddings;
 pub mod transformers;
 
