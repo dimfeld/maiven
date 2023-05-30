@@ -38,6 +38,7 @@ pub struct ErrorMessage {
 pub struct ReportError<T>(Report<T>);
 
 pub type ApiReport = ReportError<ApiError>;
+pub type ApiResult<T> = Result<Json<T>, ApiReport>;
 
 impl<T> IntoResponse for ReportError<T> {
     fn into_response(self) -> axum::response::Response {
@@ -87,12 +88,12 @@ impl<T> From<Report<T>> for ReportError<T> {
     }
 }
 
-pub trait PassthroughResult {
+pub trait IntoPassthrough {
     type Ok;
     fn passthrough_error(self) -> Result<Self::Ok, Report<ApiError>>;
 }
 
-impl<T, E> PassthroughResult for Result<T, E>
+impl<T, E> IntoPassthrough for Result<T, E>
 where
     Result<T, E>: IntoReport,
 {
@@ -100,5 +101,24 @@ where
 
     fn passthrough_error(self) -> Result<<Self as IntoReport>::Ok, Report<ApiError>> {
         self.into_report().change_context(ApiError::Passthrough)
+    }
+}
+
+/// Once specialization is implemented we can combine this with into_passthrough
+pub trait PassthroughReport {
+    type Ok;
+    fn passthrough_error(self) -> Result<Self::Ok, Report<ApiError>>;
+}
+
+impl<T, E> PassthroughReport for Result<T, Report<E>> {
+    type Ok = T;
+
+    fn passthrough_error(
+        self,
+    ) -> Result<
+        <std::result::Result<T, error_stack::Report<E>> as PassthroughReport>::Ok,
+        Report<ApiError>,
+    > {
+        self.change_context(ApiError::Passthrough)
     }
 }
