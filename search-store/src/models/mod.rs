@@ -20,7 +20,7 @@ pub struct ModelDefinition {
     pub params: ModelParams,
 }
 
-#[derive(Serialize, Deserialize, Debug, sqlx::Type)]
+#[derive(Serialize, Deserialize, Debug, Eq, PartialEq, sqlx::Type)]
 #[serde(rename_all = "kebab-case")]
 #[sqlx(rename_all = "kebab-case")]
 pub enum ModelCategory {
@@ -42,18 +42,27 @@ pub enum ModelParams {
 
 sqlx_json_decode!(ModelParams);
 
+impl ModelParams {
+    pub fn location(&self) -> Option<&str> {
+        match self {
+            ModelParams::OpenaiChat => None,
+            ModelParams::OpenaiCompletions => None,
+            ModelParams::Ggml(ModelTypeAndLocation { location, .. }) => Some(location),
+            ModelParams::RustBert(ModelLocation { location }) => Some(location),
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ModelLocation {
-    location: String,
+    pub location: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ModelTypeAndLocation {
-    model: String,
-    location: String,
+    pub model: String,
+    pub location: String,
 }
-
-pub struct ChatModel {}
 
 /// Both instruct and complete models fall under `CompletionModel`. The difference is only to inform the
 /// caller in how to prompt the model.
