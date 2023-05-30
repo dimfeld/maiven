@@ -7,7 +7,6 @@ use std::{path::PathBuf, sync::Arc};
 use axum::{routing::get, Router};
 use error_stack::{IntoReport, Report, ResultExt};
 use maiven_search_store::{models::download::ModelCache, SearchStore};
-use models::list_models;
 use sqlx::postgres::PgPoolOptions;
 use thiserror::Error;
 
@@ -26,12 +25,8 @@ struct MainError;
 async fn main() -> Result<(), Report<MainError>> {
     dotenvy::dotenv().ok();
     tracing_config::configure(std::io::stdout);
-    let supports_color = supports_color::on_cached(supports_color::Stream::Stdout)
-        .map_or(false, |level| level.has_basic);
 
-    if supports_color {
-        error_stack::Report::set_color_mode(error_stack::fmt::ColorMode::Color);
-    }
+    error_stack::Report::set_color_mode(error_stack::fmt::ColorMode::None);
 
     let model_cache_dir = std::env::var("MODEL_DIR")
         .into_report()
