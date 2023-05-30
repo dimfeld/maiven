@@ -65,12 +65,23 @@ impl ModelCache {
 
     /// Calculate the directory that will be used for a particular model, given its source.
     pub fn get_cache_path_for_model(&self, model_remote: &str) -> PathBuf {
+        let base_dir = self.get_cache_dir_for_model(model_remote);
+        match model_remote.split(':').next() {
+            Some("http") | Some("https") => {
+                let filename = model_remote.rsplit('/').next().unwrap_or_default();
+                base_dir.join(filename)
+            }
+            _ => base_dir,
+        }
+    }
+
+    fn get_cache_dir_for_model(&self, model_remote: &str) -> PathBuf {
         let model_remote = model_remote.replace([':', '/', '\\'], "_");
         self.cache_path.join(model_remote)
     }
 
     pub fn needs_download(&self, model_remote: &str) -> bool {
-        let path = self.get_cache_path_for_model(model_remote);
+        let path = self.get_cache_dir_for_model(model_remote);
         if !path.exists() {
             return true;
         }
@@ -96,18 +107,18 @@ impl ModelCache {
             return Ok(path);
         }
 
-        self.download(model_remote, &path)?;
+        self.download(model_remote, &self.get_cache_dir_for_model(model_remote))?;
 
         Ok(path)
     }
 
     /// Delete any existing cached files and redownload them.
     pub fn force_download(&self, model_remote: &str) -> Result<PathBuf, Report<DownloadError>> {
-        let path = self.get_cache_path_for_model(model_remote);
+        let path = self.get_cache_dir_for_model(model_remote);
 
         self.download(model_remote, &path)?;
 
-        Ok(path)
+        Ok(self.get_cache_path_for_model(model_remote))
     }
 
     fn download(

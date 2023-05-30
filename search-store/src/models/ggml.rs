@@ -13,9 +13,15 @@ pub fn load_ggml_model(
         "gptj" => llm::ModelArchitecture::GptJ,
         "gpt-neox" => llm::ModelArchitecture::GptNeoX,
         "llama" => llm::ModelArchitecture::Llama,
-        "mpt3" => llm::ModelArchitecture::Mpt,
+        "mpt" => llm::ModelArchitecture::Mpt,
         _ => return Err(ModelError::UnknownModelType(model_type.to_string())).into_report(),
     };
+
+    tracing::info!(
+        "Loading model {} from {}",
+        model_type,
+        weights_path.display()
+    );
 
     llm::load_dynamic(
         model_type,
@@ -25,5 +31,6 @@ pub fn load_ggml_model(
         |_| {},
     )
     .into_report()
+    .attach_printable(weights_path.display().to_string())
     .change_context(ModelError::LoadingError)
 }
