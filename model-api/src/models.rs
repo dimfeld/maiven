@@ -4,34 +4,30 @@ use axum::{
     Json, Router,
 };
 use error_stack::{IntoReport, ResultExt};
-use maiven_search_store::{
-    db::{models, DbError},
-    models::ModelDefinition,
-};
+use maiven_search_store::{db::models, models::ModelDefinition};
 use serde::Serialize;
 
 use crate::{
-    errors::{ApiError, ApiReport, PassthroughResult, ReportError},
+    errors::{ApiError, ApiReport, ApiResult, IntoPassthrough, ReportError},
     AppState,
 };
 
 #[derive(Serialize)]
-pub struct ModelInfo {
+struct ModelInfo {
     #[serde(flatten)]
     model: ModelDefinition,
     loaded: bool,
 }
 
 #[derive(Serialize)]
-pub struct ModelsResult {
+struct ModelsResult {
     models: Vec<ModelInfo>,
 }
 
-pub async fn list_models(
-    State(state): State<AppState>,
-) -> Result<Json<ModelsResult>, ReportError<DbError>> {
+async fn list_models(State(state): State<AppState>) -> ApiResult<ModelsResult> {
     let models = models::list_models(&state.pool)
-        .await?
+        .await
+        .change_context(ApiError::Passthrough)?
         .into_iter()
         .map(|model| ModelInfo {
             loaded: state.search_store.is_loaded(model.id),
@@ -42,10 +38,7 @@ pub async fn list_models(
     Ok(Json(ModelsResult { models }))
 }
 
-pub async fn load_model(
-    State(state): State<AppState>,
-    Path(id): Path<i32>,
-) -> Result<(), ApiReport> {
+async fn load_model(State(state): State<AppState>, Path(id): Path<i32>) -> Result<(), ApiReport> {
     let model = models::list_models(&state.pool)
         .await
         .change_context(ApiError::Passthrough)?
@@ -68,8 +61,21 @@ pub async fn load_model(
     Ok(())
 }
 
+#[derive(Serialize)]
+struct ChatResult {
+    response: String,
+}
+
+async fn run_chat_model(
+    State(state): State<AppState>,
+    Path(id): Path<i32>,
+) -> Result<Json<ChatResult>, ApiReport> {
+    todo!()
+}
+
 pub fn create_router() -> Router<AppState> {
     Router::new()
         .route("/", get(list_models))
         .route("/:id/load", post(load_model))
+        .route("/:id/chat", post(run_chat_model))
 }
