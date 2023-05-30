@@ -22,14 +22,14 @@ INSERT INTO models (id, name, category, params)
     jsonb_build_object(
       'code', 'ggml',
       'model', 'mpt',
-      'location', 'https://huggingface.co/LLukas22/mpt7b-ggml/resolve/main/mpt-7b-chat-q4_0-ggjt.bin'
+      'location', 'https://huggingface.co/rustformers/mpt-7b-ggml/resolve/main/mpt-7b-chat-q4_0-ggjt.bin'
     )
   ),
   (6, 'mpt7b-instruct-q4_0', 'instruct',
     jsonb_build_object(
       'code', 'ggml',
       'model', 'mpt',
-      'location', 'https://huggingface.co/LLukas22/mpt7b-ggml/resolve/main/mpt-7b-instruct-q4_0-ggjt.bin'
+      'location', 'https://huggingface.co/rustformers/mpt-7b-ggml/resolve/main/mpt-7b-instruct-q4_0-ggjt.bin'
     )
   ),
   (7, 'RedPajama-INCITE-Chat-3B', 'chat',
