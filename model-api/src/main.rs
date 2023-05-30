@@ -53,7 +53,7 @@ async fn main() -> Result<(), Report<MainError>> {
     };
 
     let app = Router::new()
-        .route("/models", get(list_models))
+        .nest("/models", models::create_router())
         .with_state(Arc::new(app_state));
 
     axum::Server::bind(&"127.0.0.1:9824".parse().unwrap())

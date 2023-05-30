@@ -1,7 +1,10 @@
 pub mod db;
 pub mod models;
 
-use std::path::{Path, PathBuf};
+use std::{
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 
 use error_stack::{IntoReport, Report, ResultExt};
 use models::{
@@ -10,24 +13,25 @@ use models::{
     download::{DownloadError, ModelCache},
     CompletionModel, CrossEncoderModel, ModelDefinition, ModelError,
 };
+use parking_lot::Mutex;
 use sqlx::PgPool;
 
 use crate::models::{chat::ggml_chat::GgmlChatModel, ModelParams, ModelTypeAndLocation};
 
-pub struct LoadedModel<T> {
+pub struct LoadedModel<T: ?Sized> {
     pub id: i32,
-    pub model: T,
+    pub model: Arc<T>,
 }
 
 pub struct SearchStore {
     pg: PgPool,
     model_cache: ModelCache,
 
-    pub loaded_chat_models: Vec<LoadedModel<Box<dyn ChatModel>>>,
-    pub loaded_completion_models: Vec<LoadedModel<CompletionModel>>,
+    pub loaded_chat_models: Mutex<Vec<LoadedModel<dyn ChatModel>>>,
+    pub loaded_completion_models: Mutex<Vec<LoadedModel<CompletionModel>>>,
 
-    loaded_bi_encoders: Vec<LoadedModel<BiEncoderModel>>,
-    loaded_cross_encoders: Vec<LoadedModel<CrossEncoderModel>>,
+    loaded_bi_encoders: Mutex<Vec<LoadedModel<BiEncoderModel>>>,
+    loaded_cross_encoders: Mutex<Vec<LoadedModel<CrossEncoderModel>>>,
 }
 
 impl SearchStore {
@@ -35,14 +39,14 @@ impl SearchStore {
         Self {
             pg,
             model_cache,
-            loaded_chat_models: Vec::new(),
-            loaded_completion_models: Vec::new(),
-            loaded_bi_encoders: Vec::new(),
-            loaded_cross_encoders: Vec::new(),
+            loaded_chat_models: Mutex::new(Vec::new()),
+            loaded_completion_models: Mutex::new(Vec::new()),
+            loaded_bi_encoders: Mutex::new(Vec::new()),
+            loaded_cross_encoders: Mutex::new(Vec::new()),
         }
     }
 
-    pub fn load_model(&mut self, model: &ModelDefinition) -> Result<(), Report<ModelError>> {
+    pub fn load_model(&self, model: &ModelDefinition) -> Result<(), Report<ModelError>> {
         let weights_path = model
             .params
             .location()
@@ -63,7 +67,7 @@ impl SearchStore {
     }
 
     fn load_chat_model(
-        &mut self,
+        &self,
         model: &ModelDefinition,
         weights_path: Option<PathBuf>,
     ) -> Result<(), Report<ModelError>> {
@@ -81,12 +85,12 @@ impl SearchStore {
                     .into_report()
                     .attach_printable("No path provided for GGML model")?;
 
-                Box::new(GgmlChatModel::new(model_name, &weights_path)?)
+                Arc::new(GgmlChatModel::new(model_name, &weights_path)?)
             }
             ModelParams::RustBert(location) => todo!(),
         };
 
-        self.loaded_chat_models.push(LoadedModel {
+        self.loaded_chat_models.lock().push(LoadedModel {
             id: model.id,
             model: loaded,
         });
@@ -95,7 +99,7 @@ impl SearchStore {
     }
 
     fn load_completion_model(
-        &mut self,
+        &self,
         model: &ModelDefinition,
         weights_path: Option<PathBuf>,
     ) -> Result<(), Report<ModelError>> {
@@ -104,7 +108,7 @@ impl SearchStore {
     }
 
     fn load_bi_encoder_model(
-        &mut self,
+        &self,
         model: &ModelDefinition,
         weights_path: Option<PathBuf>,
     ) -> Result<(), Report<ModelError>> {
@@ -113,7 +117,7 @@ impl SearchStore {
     }
 
     fn load_cross_encoder_model(
-        &mut self,
+        &self,
         model: &ModelDefinition,
         weights_path: Option<PathBuf>,
     ) -> Result<(), Report<ModelError>> {
@@ -123,13 +127,25 @@ impl SearchStore {
 
     /// A quick lookup for if a particular model is loaded.
     pub fn is_loaded(&self, model_id: i32) -> bool {
-        self.loaded_chat_models.iter().any(|m| m.id == model_id)
+        self.loaded_chat_models
+            .lock()
+            .iter()
+            .any(|m| m.id == model_id)
             || self
                 .loaded_completion_models
+                .lock()
                 .iter()
                 .any(|m| m.id == model_id)
-            || self.loaded_bi_encoders.iter().any(|m| m.id == model_id)
-            || self.loaded_cross_encoders.iter().any(|m| m.id == model_id)
+            || self
+                .loaded_bi_encoders
+                .lock()
+                .iter()
+                .any(|m| m.id == model_id)
+            || self
+                .loaded_cross_encoders
+                .lock()
+                .iter()
+                .any(|m| m.id == model_id)
     }
 }
 

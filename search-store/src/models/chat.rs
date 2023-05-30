@@ -42,6 +42,6 @@ pub struct ChatSubmission {
     temperature: Option<f32>,
 }
 
-pub trait ChatModel {
+pub trait ChatModel: Send + Sync {
     fn chat(&self, submission: ChatSubmission) -> Result<ChatMessage, Report<ModelError>>;
 }
