@@ -4,11 +4,17 @@ use axum::{
     Json, Router,
 };
 use error_stack::{IntoReport, ResultExt};
-use maiven_search_store::{db::models, models::ModelDefinition};
-use serde::Serialize;
+use maiven_search_store::{
+    db::models,
+    models::{
+        chat::{ChatMessage, ChatRole, ChatSubmission},
+        ModelDefinition,
+    },
+};
+use serde::{Deserialize, Serialize};
 
 use crate::{
-    errors::{ApiError, ApiReport, ApiResult, IntoPassthrough, ReportError},
+    errors::{ApiError, ApiReport, ApiResult, IntoPassthrough, PassthroughReport, ReportError},
     AppState,
 };
 
@@ -66,11 +72,41 @@ struct ChatResult {
     response: String,
 }
 
+#[derive(Deserialize)]
+struct ChatBody {
+    prompt: String,
+    temperature: Option<f32>,
+}
+
 async fn run_chat_model(
     State(state): State<AppState>,
     Path(id): Path<i32>,
+    Json(body): Json<ChatBody>,
 ) -> Result<Json<ChatResult>, ApiReport> {
-    todo!()
+    let model = state
+        .search_store
+        .loaded_chat_models
+        .read()
+        .iter()
+        .find(|model| model.id == id)
+        .ok_or(ApiError::ModelNotLoaded("chat"))?
+        .model
+        .clone();
+
+    let answer = model
+        .chat(ChatSubmission {
+            temperature: body.temperature,
+            messages: vec![ChatMessage {
+                role: ChatRole::User,
+                content: body.prompt,
+                name: None,
+            }],
+        })
+        .passthrough_error()?;
+
+    Ok(Json(ChatResult {
+        response: answer.content,
+    }))
 }
 
 pub fn create_router() -> Router<AppState> {

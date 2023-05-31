@@ -12,6 +12,7 @@ pub struct GgmlChatModel {
     model: Box<dyn llm::Model>,
     start_token: Option<llm::TokenId>,
     end_token: Option<llm::TokenId>,
+    newline_token: llm::TokenId,
 }
 
 impl GgmlChatModel {
@@ -20,10 +21,12 @@ impl GgmlChatModel {
         let vocab = model.vocabulary();
         let start_token = vocab.token_to_id.get("<|im_start|>".as_bytes()).copied();
         let end_token = vocab.token_to_id.get("<|im_end|>".as_bytes()).copied();
+        let newline_token = vocab.token_to_id.get("\n".as_bytes()).copied().unwrap();
         Ok(Self {
             model,
             start_token,
             end_token,
+            newline_token,
         })
     }
 }
@@ -48,13 +51,13 @@ impl ChatModel for GgmlChatModel {
 
         let token_count: usize = token_list
             .iter()
-            .map(|tokens| tokens.len() + padding_count)
+            .map(|tokens| tokens.len() + padding_count + 1)
             .sum();
 
-        let mut tokens = Vec::with_capacity(token_count + 2);
-        if let Some(bot_token) = self.model.bot_token_id() {
-            tokens.push(bot_token);
-        }
+        let mut tokens = Vec::with_capacity(token_count);
+        // if let Some(bot_token) = self.model.bot_token_id() {
+        //     tokens.push(bot_token);
+        // }
 
         for t in token_list {
             if let Some(start_token) = self.start_token {
@@ -66,6 +69,8 @@ impl ChatModel for GgmlChatModel {
             if let Some(end_token) = self.end_token {
                 tokens.push(end_token);
             }
+
+            tokens.push(self.newline_token);
         }
 
         let mut session = self.model.start_session(InferenceSessionConfig::default());
@@ -73,11 +78,16 @@ impl ChatModel for GgmlChatModel {
             all_logits: None,
             embeddings: None,
         };
-        let mut params = InferenceParameters::default();
+        let mut params = InferenceParameters {
+            temperature: 0.3,
+            ..Default::default()
+        };
+
         if let Some(temp) = submission.temperature {
             params.temperature = temp;
         }
 
+        tracing::info!(tokens=?tokens, "Sending tokens to model");
         self.model
             .evaluate(&mut session, &params, &tokens, &mut output);
 
@@ -88,7 +98,9 @@ impl ChatModel for GgmlChatModel {
             &mut output,
             &mut rand::thread_rng(),
         ) {
-            output_tokens.extend(token);
+            if token != "<|im_end|>".as_bytes() && token != "<|im_start|>".as_bytes() {
+                output_tokens.extend(token);
+            }
         }
 
         Ok(super::ChatMessage {

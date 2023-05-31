@@ -13,6 +13,8 @@ pub enum ApiError {
     InternalError,
     #[error("")]
     Passthrough,
+    #[error("Model not loaded or is not a {0} model")]
+    ModelNotLoaded(&'static str),
 }
 
 impl ApiError {
@@ -21,10 +23,17 @@ impl ApiError {
             Self::ArgError(_) => StatusCode::BAD_REQUEST,
             Self::NotFound => StatusCode::NOT_FOUND,
             Self::InternalError => StatusCode::INTERNAL_SERVER_ERROR,
+            Self::ModelNotLoaded(_) => StatusCode::BAD_REQUEST,
             Self::Passthrough => return None,
         };
 
         Some(code)
+    }
+}
+
+impl From<ApiError> for ApiReport {
+    fn from(value: ApiError) -> Self {
+        ReportError(Report::new(value))
     }
 }
 
@@ -43,8 +52,6 @@ pub type ApiResult<T> = Result<Json<T>, ApiReport>;
 impl<T> IntoResponse for ReportError<T> {
     fn into_response(self) -> axum::response::Response {
         let report = self.0;
-
-        let code: StatusCode;
 
         let message = report
             .frames()

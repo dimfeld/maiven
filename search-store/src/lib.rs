@@ -13,7 +13,7 @@ use models::{
     download::{DownloadError, ModelCache},
     CompletionModel, CrossEncoderModel, ModelDefinition, ModelError,
 };
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 use sqlx::PgPool;
 
 use crate::models::{chat::ggml_chat::GgmlChatModel, ModelParams, ModelTypeAndLocation};
@@ -27,11 +27,11 @@ pub struct SearchStore {
     pg: PgPool,
     model_cache: ModelCache,
 
-    pub loaded_chat_models: Mutex<Vec<LoadedModel<dyn ChatModel>>>,
-    pub loaded_completion_models: Mutex<Vec<LoadedModel<CompletionModel>>>,
+    pub loaded_chat_models: RwLock<Vec<LoadedModel<dyn ChatModel>>>,
+    pub loaded_completion_models: RwLock<Vec<LoadedModel<CompletionModel>>>,
 
-    loaded_bi_encoders: Mutex<Vec<LoadedModel<BiEncoderModel>>>,
-    loaded_cross_encoders: Mutex<Vec<LoadedModel<CrossEncoderModel>>>,
+    loaded_bi_encoders: RwLock<Vec<LoadedModel<BiEncoderModel>>>,
+    loaded_cross_encoders: RwLock<Vec<LoadedModel<CrossEncoderModel>>>,
 }
 
 impl SearchStore {
@@ -39,10 +39,10 @@ impl SearchStore {
         Self {
             pg,
             model_cache,
-            loaded_chat_models: Mutex::new(Vec::new()),
-            loaded_completion_models: Mutex::new(Vec::new()),
-            loaded_bi_encoders: Mutex::new(Vec::new()),
-            loaded_cross_encoders: Mutex::new(Vec::new()),
+            loaded_chat_models: RwLock::new(Vec::new()),
+            loaded_completion_models: RwLock::new(Vec::new()),
+            loaded_bi_encoders: RwLock::new(Vec::new()),
+            loaded_cross_encoders: RwLock::new(Vec::new()),
         }
     }
 
@@ -90,7 +90,7 @@ impl SearchStore {
             ModelParams::RustBert(location) => todo!(),
         };
 
-        self.loaded_chat_models.lock().push(LoadedModel {
+        self.loaded_chat_models.write().push(LoadedModel {
             id: model.id,
             model: loaded,
         });
@@ -128,22 +128,22 @@ impl SearchStore {
     /// A quick lookup for if a particular model is loaded.
     pub fn is_loaded(&self, model_id: i32) -> bool {
         self.loaded_chat_models
-            .lock()
+            .read()
             .iter()
             .any(|m| m.id == model_id)
             || self
                 .loaded_completion_models
-                .lock()
+                .read()
                 .iter()
                 .any(|m| m.id == model_id)
             || self
                 .loaded_bi_encoders
-                .lock()
+                .read()
                 .iter()
                 .any(|m| m.id == model_id)
             || self
                 .loaded_cross_encoders
-                .lock()
+                .read()
                 .iter()
                 .any(|m| m.id == model_id)
     }

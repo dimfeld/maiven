@@ -16,9 +16,9 @@ pub enum ChatRole {
 
 #[derive(Serialize, Deserialize)]
 pub struct ChatMessage {
-    role: ChatRole,
-    content: String,
-    name: Option<String>,
+    pub role: ChatRole,
+    pub content: String,
+    pub name: Option<String>,
 }
 
 impl ChatMessage {
@@ -30,16 +30,16 @@ impl ChatMessage {
         };
 
         match &self.name {
-            Some(name) => format!("{} name={}\n{}\n", role, name, self.content),
-            None => format!("{}\n{}\n", role, self.content),
+            Some(name) => format!("{} name={}\n{}", role, name, self.content),
+            None => format!("{}\n{}", role, self.content),
         }
     }
 }
 
 #[derive(Serialize, Deserialize, Default)]
 pub struct ChatSubmission {
-    messages: Vec<ChatMessage>,
-    temperature: Option<f32>,
+    pub messages: Vec<ChatMessage>,
+    pub temperature: Option<f32>,
 }
 
 pub trait ChatModel: Send + Sync {
