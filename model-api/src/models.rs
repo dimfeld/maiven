@@ -74,6 +74,7 @@ struct ChatResult {
 
 #[derive(Deserialize)]
 struct ChatBody {
+    system: Option<String>,
     prompt: String,
     temperature: Option<f32>,
 }

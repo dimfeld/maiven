@@ -111,6 +111,8 @@ CREATE TABLE chat_summaries (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE INDEX ON chat_summaries(session_id);
+
 CREATE TABLE chat_messages (
   id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   session_id BIGINT NOT NULL REFERENCES chat_sessions(id) ON DELETE CASCADE,
@@ -123,3 +125,4 @@ CREATE TABLE chat_messages (
 
 COMMENT ON COLUMN chat_messages.important IS 'If this message is marked as important and should be given preference as the context growws longer.';
 
+CREATE INDEX ON chat_messages(session_id);

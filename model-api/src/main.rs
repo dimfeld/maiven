@@ -1,3 +1,4 @@
+mod chat;
 mod errors;
 mod models;
 mod tracing_config;
@@ -49,6 +50,7 @@ async fn main() -> Result<(), Report<MainError>> {
 
     let app = Router::new()
         .nest("/models", models::create_router())
+        .nest("/chats", chat::create_router())
         .with_state(Arc::new(app_state));
 
     axum::Server::bind(&"127.0.0.1:9824".parse().unwrap())
