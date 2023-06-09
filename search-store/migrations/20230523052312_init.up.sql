@@ -93,6 +93,7 @@ CREATE TABLE chat_sessions (
   name TEXT,
   system_message_id BIGINT REFERENCES chat_system_messages(id) ON DELETE SET NULL,
   parent_session BIGINT REFERENCES chat_sessions(id) ON DELETE SET NULL,
+  config JSONB NOT NULL default 'null'::jsonb,
   hidden BOOLEAN NOT NULL DEFAULT FALSE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -118,6 +119,8 @@ CREATE TABLE chat_messages (
   session_id BIGINT NOT NULL REFERENCES chat_sessions(id) ON DELETE CASCADE,
   parent_id BIGINT REFERENCES chat_messages(id) ON DELETE CASCADE,
   important BOOLEAN NOT NULL DEFAULT FALSE,
+  config JSONB NOT NULL DEFAULT 'null'::jsonb,
+  system_info JSONB,
   user_message TEXT NOT NULL,
   ai_message TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
