@@ -70,7 +70,6 @@ pub struct CompletionModel {}
 
 /// Use a chat or completion model in a generic way.
 pub trait TextGenerationModel {
-    // TODO not infallible
     /// Generate text from a prompt.
     fn generate(&self, prompt: &str) -> Result<String, ModelError>;
 }

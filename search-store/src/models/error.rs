@@ -4,8 +4,7 @@ use thiserror::Error;
 pub enum ModelError {
     #[error("Model worker has closed")]
     WorkerClosed,
-    // TODO make this better
-    #[error("Generic model failure")]
+    #[error("Model error")]
     ModelFailure,
     #[error("Failed to load model")]
     LoadingError,
