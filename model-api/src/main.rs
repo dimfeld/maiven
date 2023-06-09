@@ -1,6 +1,8 @@
 mod chat;
 mod errors;
+mod items;
 mod models;
+mod sources;
 mod tracing_config;
 
 use std::{path::PathBuf, sync::Arc};
@@ -51,6 +53,8 @@ async fn main() -> Result<(), Report<MainError>> {
     let app = Router::new()
         .nest("/models", models::create_router())
         .nest("/chats", chat::create_router())
+        .nest("/items", items::create_router())
+        .nest("/sources", sources::create_router())
         .with_state(Arc::new(app_state));
 
     axum::Server::bind(&"127.0.0.1:9824".parse().unwrap())

@@ -15,6 +15,8 @@ pub enum ApiError {
     Passthrough,
     #[error("Model not loaded or is not a {0} model")]
     ModelNotLoaded(&'static str),
+    #[error("Not implemented")]
+    NotImplmented,
 }
 
 impl ApiError {
@@ -24,6 +26,7 @@ impl ApiError {
             Self::NotFound => StatusCode::NOT_FOUND,
             Self::InternalError => StatusCode::INTERNAL_SERVER_ERROR,
             Self::ModelNotLoaded(_) => StatusCode::BAD_REQUEST,
+            Self::NotImplmented => StatusCode::NOT_IMPLEMENTED,
             Self::Passthrough => return None,
         };
 

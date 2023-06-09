@@ -19,6 +19,20 @@ async fn get_chat_session(
     Ok(StatusCode::NOT_IMPLEMENTED)
 }
 
+async fn update_chat_session(
+    State(state): State<AppState>,
+    Path(id): Path<i32>,
+) -> Result<impl IntoResponse, ApiReport> {
+    Ok(StatusCode::NOT_IMPLEMENTED)
+}
+
+async fn delete_chat_session(
+    State(state): State<AppState>,
+    Path(id): Path<i32>,
+) -> Result<impl IntoResponse, ApiReport> {
+    Ok(StatusCode::NOT_IMPLEMENTED)
+}
+
 async fn add_chat_message(
     State(state): State<AppState>,
     Path(id): Path<i32>,
@@ -26,9 +40,18 @@ async fn add_chat_message(
     Ok(StatusCode::NOT_IMPLEMENTED)
 }
 
+async fn new_chat_session(State(state): State<AppState>) -> Result<impl IntoResponse, ApiReport> {
+    Ok(StatusCode::NOT_IMPLEMENTED)
+}
+
 pub fn create_router() -> Router<AppState> {
     Router::new()
-        .route("/", get(list_chat_sessions))
-        .route("/:id", get(get_chat_session))
-        .route("/:id/add_chat_message", post(add_chat_message))
+        .route("/", get(list_chat_sessions).post(new_chat_session))
+        .route(
+            "/:id",
+            get(get_chat_session)
+                .put(update_chat_session)
+                .delete(delete_chat_session),
+        )
+        .route("/:id/add_message", post(add_chat_message))
 }
