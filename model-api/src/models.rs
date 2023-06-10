@@ -15,7 +15,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     errors::{ApiError, ApiReport, ApiResult, IntoPassthrough, PassthroughReport, ReportError},
-    AppState,
+    AppState, AppStateContents,
 };
 
 #[derive(Serialize)]
@@ -30,7 +30,7 @@ struct ModelsResult {
     models: Vec<ModelInfo>,
 }
 
-async fn list_models(State(state): State<AppState>) -> ApiResult<ModelsResult> {
+async fn list_models(State(state): AppState) -> ApiResult<ModelsResult> {
     let models = models::list_models(&state.pool)
         .await
         .change_context(ApiError::Passthrough)?
@@ -44,7 +44,7 @@ async fn list_models(State(state): State<AppState>) -> ApiResult<ModelsResult> {
     Ok(Json(ModelsResult { models }))
 }
 
-async fn load_model(State(state): State<AppState>, Path(id): Path<i32>) -> Result<(), ApiReport> {
+async fn load_model(State(state): AppState, Path(id): Path<i32>) -> Result<(), ApiReport> {
     let model = models::list_models(&state.pool)
         .await
         .change_context(ApiError::Passthrough)?
@@ -80,7 +80,7 @@ struct ChatBody {
 }
 
 async fn run_chat_model(
-    State(state): State<AppState>,
+    State(state): AppState,
     Path(id): Path<i32>,
     Json(body): Json<ChatBody>,
 ) -> Result<Json<ChatResult>, ApiReport> {
@@ -110,7 +110,7 @@ async fn run_chat_model(
     }))
 }
 
-pub fn create_router() -> Router<AppState> {
+pub fn create_router() -> Router<AppStateContents> {
     Router::new()
         .route("/", get(list_models))
         .route("/:id/load", post(load_model))

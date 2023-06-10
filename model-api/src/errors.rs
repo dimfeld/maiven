@@ -1,5 +1,6 @@
 use axum::{http::StatusCode, response::IntoResponse, Json};
 use error_stack::{FrameKind, IntoReport, Report, ResultExt};
+use maiven_search_store::db::DbError;
 use serde::Serialize;
 use thiserror::Error;
 
@@ -37,6 +38,12 @@ impl ApiError {
 impl From<ApiError> for ApiReport {
     fn from(value: ApiError) -> Self {
         ReportError(Report::new(value))
+    }
+}
+
+impl From<Report<DbError>> for ApiReport {
+    fn from(value: Report<DbError>) -> Self {
+        ReportError(value.change_context(ApiError::InternalError))
     }
 }
 

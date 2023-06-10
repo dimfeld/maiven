@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 axum = { version = "0.6.18", features = ["tracing"] }
+base64 = "0.21.2"
 dotenvy = "0.15.7"
 error-stack = { version = "0.3.1", features = ["spantrace"] }
 log = "0.4.17"
@@ -15,6 +16,7 @@ serde = { version = "1.0.163", features = ["derive"] }
 serde_json = "1.0.96"
 sqlx = { version = "0.6.3", features = ["postgres", "json", "runtime-tokio-native-tls", "time"] }
 thiserror = "1.0.40"
+time = { version = "0.3.22", features = ["serde", "serde-human-readable"] }
 tokio = { version = "1.28.1", features = ["full", "tracing"] }
 tracing = "0.1.37"
 tracing-log = "0.1.3"

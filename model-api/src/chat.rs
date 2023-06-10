@@ -6,45 +6,45 @@ use axum::{
     Router,
 };
 
-use crate::{errors::ApiReport, AppState};
+use crate::{errors::ApiReport, AppState, AppStateContents};
 
-async fn list_chat_sessions(State(state): State<AppState>) -> Result<impl IntoResponse, ApiReport> {
+async fn list_chat_sessions(State(state): AppState) -> Result<impl IntoResponse, ApiReport> {
     Ok(StatusCode::NOT_IMPLEMENTED)
 }
 
 async fn get_chat_session(
-    State(state): State<AppState>,
+    State(state): AppState,
     Path(id): Path<i32>,
 ) -> Result<impl IntoResponse, ApiReport> {
     Ok(StatusCode::NOT_IMPLEMENTED)
 }
 
 async fn update_chat_session(
-    State(state): State<AppState>,
+    State(state): AppState,
     Path(id): Path<i32>,
 ) -> Result<impl IntoResponse, ApiReport> {
     Ok(StatusCode::NOT_IMPLEMENTED)
 }
 
 async fn delete_chat_session(
-    State(state): State<AppState>,
+    State(state): AppState,
     Path(id): Path<i32>,
 ) -> Result<impl IntoResponse, ApiReport> {
     Ok(StatusCode::NOT_IMPLEMENTED)
 }
 
 async fn add_chat_message(
-    State(state): State<AppState>,
+    State(state): AppState,
     Path(id): Path<i32>,
 ) -> Result<impl IntoResponse, ApiReport> {
     Ok(StatusCode::NOT_IMPLEMENTED)
 }
 
-async fn new_chat_session(State(state): State<AppState>) -> Result<impl IntoResponse, ApiReport> {
+async fn new_chat_session(State(state): AppState) -> Result<impl IntoResponse, ApiReport> {
     Ok(StatusCode::NOT_IMPLEMENTED)
 }
 
-pub fn create_router() -> Router<AppState> {
+pub fn create_router() -> Router<AppStateContents> {
     Router::new()
         .route("/", get(list_chat_sessions).post(new_chat_session))
         .route(

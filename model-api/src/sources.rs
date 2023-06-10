@@ -5,7 +5,7 @@ use axum::{
     Router,
 };
 
-use crate::{errors::ApiReport, AppState};
+use crate::{errors::ApiReport, AppState, AppStateContents};
 
 async fn get_source() -> Result<impl IntoResponse, ApiReport> {
     Ok(StatusCode::NOT_IMPLEMENTED)
@@ -23,7 +23,7 @@ async fn delete_source() -> Result<impl IntoResponse, ApiReport> {
     Ok(StatusCode::NOT_IMPLEMENTED)
 }
 
-pub fn create_router() -> Router<AppState> {
+pub fn create_router() -> Router<AppStateContents> {
     Router::new().route("/", post(new_source)).route(
         "/:id",
         get(get_source).patch(update_source).delete(delete_source),

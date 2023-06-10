@@ -7,7 +7,7 @@ mod tracing_config;
 
 use std::{path::PathBuf, sync::Arc};
 
-use axum::{routing::get, Router};
+use axum::{extract::State, routing::get, Router};
 use error_stack::{IntoReport, Report, ResultExt};
 use maiven_search_store::{models::download::ModelCache, SearchStore};
 use sqlx::postgres::PgPoolOptions;
@@ -18,7 +18,8 @@ pub struct AppStateInner {
     pub search_store: SearchStore,
 }
 
-pub type AppState = Arc<AppStateInner>;
+pub type AppStateContents = Arc<AppStateInner>;
+pub type AppState = State<AppStateContents>;
 
 #[derive(Error, Debug)]
 #[error("app error")]
