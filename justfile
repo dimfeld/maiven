@@ -13,7 +13,7 @@ run-qdrant:
   docker run \
     -p {{QDRANT_HTTP_PORT}}:6333 \
     -p {{QDRANT_GRPC_PORT}}:6334 \
-    -v {{justfile_directory()}}/qdrant/storage:/qdrant/storage \
+    -v {{justfile_directory()}}/storage/qdrant/storage:/qdrant/storage \
     --restart unless-stopped \
     --name maiven-qdrant \
     -d \
