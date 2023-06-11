@@ -53,7 +53,7 @@ async fn main() -> Result<(), Report<MainError>> {
 
     let app_state = AppStateInner {
         pool: pool.clone(),
-        search_store: SearchStore::new(pool, model_cache),
+        search_store: SearchStore::new(pool, file_storage_dir, model_cache),
     };
 
     let app = Router::new()
