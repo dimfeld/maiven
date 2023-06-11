@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::{path::Path, sync::Arc};
 
 use error_stack::{IntoReport, Report, ResultExt};
 use llm::{InferenceParameters, InferenceSessionConfig, OutputRequest};
@@ -19,9 +19,9 @@ impl GgmlChatModel {
     pub fn new(model_type: &str, weights_path: &Path) -> Result<Self, Report<ModelError>> {
         let model = ggml::load_ggml_model(model_type, weights_path)?;
         let vocab = model.vocabulary();
-        let start_token = vocab.token_to_id.get("<|im_start|>".as_bytes()).copied();
-        let end_token = vocab.token_to_id.get("<|im_end|>".as_bytes()).copied();
-        let newline_token = vocab.token_to_id.get("\n".as_bytes()).copied().unwrap();
+        let start_token = vocab.id("<|im_start|>".as_bytes());
+        let end_token = vocab.id("<|im_end|>".as_bytes());
+        let newline_token = vocab.id("\n".as_bytes()).unwrap();
         Ok(Self {
             model,
             start_token,
@@ -78,14 +78,16 @@ impl ChatModel for GgmlChatModel {
             all_logits: None,
             embeddings: None,
         };
+
+        let temperature = submission.temperature.unwrap_or(0.3);
+
         let mut params = InferenceParameters {
-            temperature: 0.3,
+            sampler: Arc::new(llm::samplers::TopPTopK {
+                temperature,
+                ..Default::default()
+            }),
             ..Default::default()
         };
-
-        if let Some(temp) = submission.temperature {
-            params.temperature = temp;
-        }
 
         tracing::info!(tokens=?tokens, "Sending tokens to model");
         self.model

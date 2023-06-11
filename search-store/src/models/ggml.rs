@@ -26,8 +26,8 @@ pub fn load_ggml_model(
     llm::load_dynamic(
         model_type,
         weights_path,
+        llm::VocabularySource::Model,
         llm::ModelParameters::default(),
-        None,
         |_| {},
     )
     .into_report()
