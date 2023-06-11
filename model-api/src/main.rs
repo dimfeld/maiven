@@ -32,6 +32,11 @@ async fn main() -> Result<(), Report<MainError>> {
 
     error_stack::Report::set_color_mode(error_stack::fmt::ColorMode::None);
 
+    let file_storage_dir = std::env::var("FILE_STORAGE_LOCATION")
+        .into_report()
+        .attach_printable("FILE_STORAGE_LOCATION")
+        .change_context(MainError {})?;
+
     let model_cache_dir = std::env::var("MODEL_DIR")
         .into_report()
         .attach_printable("MODEL_DIR")

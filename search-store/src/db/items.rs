@@ -1,6 +1,6 @@
 use error_stack::{IntoReport, Report, ResultExt};
 use serde::{Deserialize, Serialize};
-use sqlx::{query_as, FromRow, PgPool};
+use sqlx::{query, query_as, FromRow, PgPool};
 
 use super::DbError;
 
@@ -9,7 +9,8 @@ use super::DbError;
 #[sqlx(type_name = "item_status", rename_all = "snake_case")]
 pub enum ItemStatus {
     WaitingForUpload,
-    Pending,
+    Uploaded,
+    PendingProcessing,
     Processing,
     Ready,
     Error,
@@ -117,6 +118,25 @@ pub async fn add_new_item(
     .change_context(DbError {})
 }
 
+pub async fn lookup_by_id(pool: &PgPool, id: i64) -> Result<Option<ItemMetadata>, Report<DbError>> {
+    query_as!(
+        ItemMetadata,
+        r#"
+        SELECT
+            id, source_id, status as "status: ItemStatus", content_type, external_id, version, hash,
+            saved_original_path, original_location, tags, name, title, author,
+            description, generated_summary, updated_at, hidden
+        FROM items
+        WHERE id = $1
+        LIMIT 1"#,
+        id
+    )
+    .fetch_optional(pool)
+    .await
+    .into_report()
+    .change_context(DbError {})
+}
+
 pub async fn lookup_by_hash(
     pool: &PgPool,
     hash: &[u8],
@@ -159,4 +179,28 @@ pub async fn lookup_by_external_id(
     .await
     .into_report()
     .change_context(DbError {})
+}
+
+pub async fn update_item_after_upload(
+    pool: &PgPool,
+    id: i64,
+    new_version: i32,
+    hash: &[u8],
+    saved_original_path: &str,
+) -> Result<(), Report<DbError>> {
+    query!(
+        "UPDATE items
+        SET status = 'pending_processing', version = $1, hash = $2, saved_original_path = $3
+        WHERE id = $4",
+        new_version,
+        hash,
+        saved_original_path,
+        id
+    )
+    .execute(pool)
+    .await
+    .into_report()
+    .change_context(DbError {})?;
+
+    Ok(())
 }

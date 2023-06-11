@@ -27,6 +27,8 @@ pub struct SearchStore {
     pg: PgPool,
     model_cache: ModelCache,
 
+    pub file_storage_location: String,
+
     pub loaded_chat_models: RwLock<Vec<LoadedModel<dyn ChatModel>>>,
     pub loaded_completion_models: RwLock<Vec<LoadedModel<CompletionModel>>>,
 
@@ -35,10 +37,11 @@ pub struct SearchStore {
 }
 
 impl SearchStore {
-    pub fn new(pg: PgPool, model_cache: ModelCache) -> Self {
+    pub fn new(pg: PgPool, file_storage_location: String, model_cache: ModelCache) -> Self {
         Self {
             pg,
             model_cache,
+            file_storage_location,
             loaded_chat_models: RwLock::new(Vec::new()),
             loaded_completion_models: RwLock::new(Vec::new()),
             loaded_bi_encoders: RwLock::new(Vec::new()),

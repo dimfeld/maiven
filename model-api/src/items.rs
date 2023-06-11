@@ -1,5 +1,5 @@
 use axum::{
-    extract::{Path, State},
+    extract::{BodyStream, Path, State},
     http::StatusCode,
     response::IntoResponse,
     routing::{get, post},
@@ -7,11 +7,13 @@ use axum::{
 };
 use base64::Engine;
 use error_stack::{IntoReport, ResultExt};
-use maiven_search_store::db::items::ItemStatus;
-use serde::Serialize;
+use futures::StreamExt;
+use maiven_search_store::db::{self, items::ItemStatus};
+use serde::{Deserialize, Serialize};
+use tokio::io::AsyncWriteExt;
 
 use crate::{
-    errors::{ApiError, ApiReport, ApiResult},
+    errors::{ApiError, ApiReport, ApiResult, IntoPassthrough},
     AppState, AppStateContents,
 };
 
@@ -22,7 +24,20 @@ const BASE64_CONFIG: base64::engine::GeneralPurposeConfig =
 const BASE64_ENGINE: base64::engine::GeneralPurpose =
     base64::engine::GeneralPurpose::new(&base64::alphabet::URL_SAFE, BASE64_CONFIG);
 
-struct ItemPayload {}
+#[derive(Deserialize, Debug)]
+struct ItemPayload {
+    pub source_id: i32,
+    pub status: ItemStatus,
+    pub content_type: String,
+    pub external_id: String,
+    pub original_location: Option<String>,
+    pub tags: Vec<i32>,
+    pub name: Option<String>,
+    pub title: Option<String>,
+    pub author: Option<String>,
+    pub description: Option<String>,
+    pub hidden: bool,
+}
 
 #[derive(Serialize, Debug)]
 struct ItemResponse {
@@ -58,7 +73,7 @@ impl From<maiven_search_store::db::items::ItemMetadata> for ItemResponse {
             content_type: item.content_type,
             external_id: item.external_id,
             version: item.version,
-            hash: item.hash.map(|hash| BASE64_ENGINE.encode(&hash)),
+            hash: item.hash.map(|hash| BASE64_ENGINE.encode(hash)),
             tags: item.tags,
             saved_original_path: item.saved_original_path,
             original_location: item.original_location,
@@ -118,12 +133,94 @@ async fn update_file_metadata() -> Result<impl IntoResponse, ApiReport> {
     Ok(StatusCode::NOT_IMPLEMENTED)
 }
 
-async fn new_file() -> Result<impl IntoResponse, ApiReport> {
-    Ok(StatusCode::NOT_IMPLEMENTED)
+async fn new_file(
+    State(state): AppState,
+    Json(payload): Json<ItemPayload>,
+) -> ApiResult<ItemResponse> {
+    let new_item = db::items::ItemPayload {
+        source_id: payload.source_id,
+        version: 0,
+        hash: None,
+        saved_original_path: None,
+        original_content: None,
+        processed_content: None,
+        status: payload.status,
+        content_type: payload.content_type,
+        external_id: payload.external_id,
+        original_location: payload.original_location,
+        tags: payload.tags,
+        name: payload.name,
+        title: payload.title,
+        author: payload.author,
+        description: payload.description,
+        generated_summary: None,
+        hidden: false,
+    };
+
+    let result = db::items::add_new_item(&state.pool, &new_item)
+        .await
+        .map(ItemResponse::from)?;
+
+    Ok(Json(result))
 }
 
-async fn upload_file() -> Result<impl IntoResponse, ApiReport> {
-    Ok(StatusCode::NOT_IMPLEMENTED)
+async fn upload_file(
+    State(state): AppState,
+    Path(id): Path<i64>,
+    mut body: BodyStream,
+) -> Result<impl IntoResponse, ApiReport> {
+    let item_data = db::items::lookup_by_id(&state.pool, id)
+        .await?
+        .ok_or(ApiError::NotFound)?;
+
+    let new_version = match item_data.status {
+        ItemStatus::WaitingForUpload | ItemStatus::Error => item_data.version,
+        _ => item_data.version + 1,
+    };
+
+    let storage_filename = format!(
+        "{}-{}",
+        item_data.external_id.replace('/', "-"),
+        time::OffsetDateTime::now_utc().unix_timestamp(),
+    );
+
+    let storage_dir = std::path::Path::new(&state.search_store.file_storage_location);
+    let full_filename = storage_dir.join(&storage_filename);
+
+    let mut hasher = blake3::Hasher::new();
+    let file = tokio::fs::File::create(full_filename)
+        .await
+        .passthrough_error()?;
+    let mut buffile = tokio::io::BufWriter::new(file);
+
+    while let Some(chunk) = body.next().await {
+        let chunk = chunk.passthrough_error()?;
+        buffile.write_all(&chunk).await.passthrough_error()?;
+        hasher.update(&chunk);
+    }
+
+    buffile.flush().await.passthrough_error()?;
+
+    let output_hash = hasher.finalize();
+
+    db::items::update_item_after_upload(
+        &state.pool,
+        id,
+        new_version,
+        output_hash.as_bytes(),
+        &storage_filename,
+    )
+    .await?;
+
+    // TODO Enqueue for processing
+
+    if let Some(old_path) = item_data.saved_original_path.as_ref() {
+        let old_filename = storage_dir.join(old_path);
+        // TODO report error some other way
+        tokio::fs::remove_file(old_filename).await.ok();
+    }
+
+    Ok(StatusCode::OK)
 }
 
 async fn delete_file() -> Result<impl IntoResponse, ApiReport> {
