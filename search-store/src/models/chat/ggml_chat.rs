@@ -102,18 +102,20 @@ impl ChatModel for GgmlChatModel {
             .evaluate(&mut session, &params, &tokens, &mut output);
         info!(input_tokens=%tokens.len(), "Evaluated input");
 
+        let mut num_output_tokens = 0;
         while let Ok(token) = session.infer_next_token(
             self.model.as_ref(),
             &params,
             &mut output,
             &mut rand::thread_rng(),
         ) {
+            num_output_tokens += 1;
             if token != "<|im_end|>".as_bytes() && token != "<|im_start|>".as_bytes() {
                 output_tokens.extend(token);
             }
         }
 
-        info!(output_tokens=%output_tokens.len(), "Done");
+        info!(output_tokens=%num_output_tokens, "Done");
 
         Ok(super::ChatMessage {
             role: ChatRole::Assistant,

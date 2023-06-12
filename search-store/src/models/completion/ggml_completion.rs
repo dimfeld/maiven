@@ -65,12 +65,14 @@ impl CompletionModel for dyn llm::Model {
         self.evaluate(&mut session, &params, &tokens, &mut output);
         info!(input_tokens=%tokens.len(), "Evaluated input");
 
+        let mut num_output_tokens = 0;
         while let Ok(token) =
             session.infer_next_token(self, &params, &mut output, &mut rand::thread_rng())
         {
             output_tokens.extend(token);
+            num_output_tokens += 1;
         }
-        info!(output_tokens=%output_tokens.len(), "Done");
+        info!(output_tokens=%num_output_tokens, "Done");
 
         Ok(String::from_utf8_lossy(&output_tokens).to_string())
     }
