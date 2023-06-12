@@ -22,42 +22,48 @@ INSERT INTO models (id, name, category, params)
     jsonb_build_object(
       'code', 'ggml',
       'model', 'mpt',
-      'location', 'https://huggingface.co/rustformers/mpt-7b-ggml/resolve/main/mpt-7b-chat-q4_0-ggjt.bin'
+      'location', 'https://huggingface.co/rustformers/mpt-7b-ggml/resolve/main/mpt-7b-chat-q4_0-ggjt.bin',
+      'tokenizer', 'huggingface:mosaicml/mpt-7b-chat'
     )
   ),
   (6, 'mpt7b-instruct-q4_0', 'instruct',
     jsonb_build_object(
       'code', 'ggml',
       'model', 'mpt',
-      'location', 'https://huggingface.co/rustformers/mpt-7b-ggml/resolve/main/mpt-7b-instruct-q4_0-ggjt.bin'
+      'location', 'https://huggingface.co/rustformers/mpt-7b-ggml/resolve/main/mpt-7b-instruct-q4_0-ggjt.bin',
+      'tokenizer', 'huggingface:mosaicml/mpt-7b-instruct'
     )
   ),
   (7, 'RedPajama-INCITE-Chat-3B', 'chat',
     jsonb_build_object(
       'code', 'ggml',
       'model', 'gpt-neox',
-      'location', 'https://huggingface.co/keldenl/RedPajama-INCITE-Chat-3B-v1-GGML/resolve/main/rp-chat-3b-v1-ggml-model-q4_0.bin'
+      'location', 'https://huggingface.co/keldenl/RedPajama-INCITE-Chat-3B-v1-GGML/resolve/main/rp-chat-3b-v1-ggml-model-q4_0.bin',
+      'tokenizer', 'huggingface:togethercomputer/RedPajama-INCITE-Chat-3B-v1'
     )
   ),
   (8, 'RedPajama-INCITE-Chat-7B', 'chat',
     jsonb_build_object(
       'code', 'ggml',
       'model', 'gpt-neox',
-      'location', 'https://huggingface.co/keldenl/RedPajama-INCITE-Chat-7B-v0.1-GGML/resolve/main/ggml-model-q4_0.bin'
+      'location', 'https://huggingface.co/keldenl/RedPajama-INCITE-Chat-7B-v0.1-GGML/resolve/main/ggml-model-q4_0.bin',
+      'tokenizer', 'huggingface:togethercomputer/RedPajama-INCITE-7B-Chat'
     )
   ),
   (9, 'RedPajama-INCITE-Instruct-3B', 'instruct',
     jsonb_build_object(
       'code', 'ggml',
       'model', 'gpt-neox',
-      'location', 'https://huggingface.co/keldenl/RedPajama-INCITE-Instruct-3B-v1-GGML/resolve/main/rp-instruct-3b-v1-ggml-model-q4_0.bin'
+      'location', 'https://huggingface.co/keldenl/RedPajama-INCITE-Instruct-3B-v1-GGML/resolve/main/rp-instruct-3b-v1-ggml-model-q4_0.bin',
+      'tokenizer', 'huggingface:togethercomputer/RedPajama-INCITE-Instruct-3B-v1'
     )
   ),
   (10, 'RedPajama-INCITE-Instruct-7B', 'instruct',
     jsonb_build_object(
       'code', 'ggml',
       'model', 'gpt-neox',
-      'location', 'https://huggingface.co/keldenl/RedPajama-INCITE-Instruct-7B-v0.1-GGML/resolve/main/rp-instruct-7B-v0.1-ggml-model-q4_0.bin'
+      'location', 'https://huggingface.co/keldenl/RedPajama-INCITE-Instruct-7B-v0.1-GGML/resolve/main/rp-instruct-7B-v0.1-ggml-model-q4_0.bin',
+      'tokenizer', 'huggingface:togethercomputer/RedPajama-INCITE-7B-Instruct'
     )
   ),
   (11, 'all-MiniLM-L6-v2', 'bi-encoder',

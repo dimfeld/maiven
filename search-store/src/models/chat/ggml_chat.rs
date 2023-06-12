@@ -17,7 +17,7 @@ pub struct GgmlChatModel {
     model: Box<dyn llm::Model>,
     start_token: Option<llm::TokenId>,
     end_token: Option<llm::TokenId>,
-    newline_token: llm::TokenId,
+    newline_token: Option<llm::TokenId>,
 }
 
 impl GgmlChatModel {
@@ -31,13 +31,13 @@ impl GgmlChatModel {
         let vocab = model.vocabulary();
         let start_token = vocab.id("<|im_start|>".as_bytes());
         let end_token = vocab.id("<|im_end|>".as_bytes());
-        let newline_token = vocab.id("\n".as_bytes()).unwrap();
+        let newline_token = vocab.tokenize("\n", false).unwrap();
         Ok(Self {
             name,
             model,
             start_token,
             end_token,
-            newline_token,
+            newline_token: newline_token.get(0).map(|(_, token)| *token),
         })
     }
 }
@@ -82,7 +82,9 @@ impl ChatModel for GgmlChatModel {
                 tokens.push(end_token);
             }
 
-            tokens.push(self.newline_token);
+            if let Some(newline_token) = self.newline_token {
+                tokens.push(newline_token);
+            }
         }
 
         let temperature = submission.temperature.unwrap_or(0.3);
