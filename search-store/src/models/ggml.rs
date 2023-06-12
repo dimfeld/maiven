@@ -1,11 +1,13 @@
 use error_stack::{IntoReport, Report, ResultExt};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use super::ModelError;
 
 pub fn load_ggml_model(
+    model_name: &str,
     model_type: &str,
     weights_path: &Path,
+    vocab_path: Option<PathBuf>,
 ) -> Result<Box<dyn llm::Model>, Report<ModelError>> {
     let model_type = match model_type {
         "bloom" => llm::ModelArchitecture::Bloom,
@@ -19,14 +21,18 @@ pub fn load_ggml_model(
 
     tracing::info!(
         "Loading model {} from {}",
-        model_type,
+        model_name,
         weights_path.display()
     );
+
+    let vocab_source = vocab_path
+        .map(llm::VocabularySource::HuggingFaceTokenizerFile)
+        .unwrap_or(llm::VocabularySource::Model);
 
     llm::load_dynamic(
         model_type,
         weights_path,
-        llm::VocabularySource::Model,
+        vocab_source,
         llm::ModelParameters::default(),
         |_| {},
     )

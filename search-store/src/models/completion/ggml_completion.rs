@@ -1,4 +1,7 @@
-use std::{path::Path, sync::Arc};
+use std::{
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 
 use error_stack::{IntoReport, Report, ResultExt};
 use llm::{InferenceParameters, InferenceSessionConfig, OutputRequest};
@@ -18,8 +21,9 @@ impl GgmlCompletionModel {
         name: String,
         model_type: &str,
         weights_path: &Path,
+        tokenizer_path: Option<PathBuf>,
     ) -> Result<Self, Report<ModelError>> {
-        let model = ggml::load_ggml_model(model_type, weights_path)?;
+        let model = ggml::load_ggml_model(&name, model_type, weights_path, tokenizer_path)?;
         Ok(Self { name, model })
     }
 }

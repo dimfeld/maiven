@@ -1,4 +1,7 @@
-use std::{path::Path, sync::Arc};
+use std::{
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 
 use error_stack::{IntoReport, Report, ResultExt};
 use llm::{InferenceParameters, InferenceSessionConfig, OutputRequest};
@@ -22,8 +25,9 @@ impl GgmlChatModel {
         name: String,
         model_type: &str,
         weights_path: &Path,
+        tokenizer_path: Option<PathBuf>,
     ) -> Result<Self, Report<ModelError>> {
-        let model = ggml::load_ggml_model(model_type, weights_path)?;
+        let model = ggml::load_ggml_model(&name, model_type, weights_path, tokenizer_path)?;
         let vocab = model.vocabulary();
         let start_token = vocab.id("<|im_start|>".as_bytes());
         let end_token = vocab.id("<|im_end|>".as_bytes());

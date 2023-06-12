@@ -37,19 +37,39 @@ pub enum ModelCategory {
 pub enum ModelParams {
     OpenaiChat,
     OpenaiCompletions,
-    Ggml(ModelTypeAndLocation),
+    Ggml(GgmlModelParams),
     RustBert(ModelLocation),
 }
 
 sqlx_json_decode!(ModelParams);
+
+pub struct LocationAndPattern {
+    location: String,
+    pattern: String,
+}
 
 impl ModelParams {
     pub fn location(&self) -> Option<&str> {
         match self {
             ModelParams::OpenaiChat => None,
             ModelParams::OpenaiCompletions => None,
-            ModelParams::Ggml(ModelTypeAndLocation { location, .. }) => Some(location),
+            ModelParams::Ggml(GgmlModelParams { location, .. }) => Some(location),
             ModelParams::RustBert(ModelLocation { location }) => Some(location),
+        }
+    }
+
+    pub fn additional_files(&self) -> Vec<LocationAndPattern> {
+        match self {
+            ModelParams::OpenaiChat => Vec::new(),
+            ModelParams::OpenaiCompletions => Vec::new(),
+            ModelParams::Ggml(GgmlModelParams { tokenizer, .. }) => match tokenizer {
+                Some(tokenizer) => vec![LocationAndPattern {
+                    location: tokenizer.clone(),
+                    pattern: r##".*\.json$"##.to_string(),
+                }],
+                None => Vec::new(),
+            },
+            ModelParams::RustBert(_) => Vec::new(),
         }
     }
 }
@@ -60,9 +80,10 @@ pub struct ModelLocation {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct ModelTypeAndLocation {
+pub struct GgmlModelParams {
     pub model: String,
     pub location: String,
+    pub tokenizer: Option<String>,
 }
 
 pub struct CrossEncoderModel {}

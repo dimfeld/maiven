@@ -18,8 +18,8 @@ use parking_lot::RwLock;
 use sqlx::PgPool;
 
 use crate::models::{
-    chat::ggml_chat::GgmlChatModel, completion::ggml_completion::GgmlCompletionModel, ModelParams,
-    ModelTypeAndLocation,
+    chat::ggml_chat::GgmlChatModel, completion::ggml_completion::GgmlCompletionModel,
+    GgmlModelParams, ModelParams,
 };
 
 pub struct LoadedModel<T: ?Sized> {
@@ -54,29 +54,25 @@ impl SearchStore {
     }
 
     pub fn load_model(&self, model: &ModelDefinition) -> Result<(), Report<ModelError>> {
-        let weights_path = model
-            .params
-            .location()
-            .map(|location| self.model_cache.download_if_needed(location))
-            .transpose()
+        let model_dir = self
+            .model_cache
+            .download_if_needed(&model.params)
             .change_context(ModelError::LoadingError)?;
 
         match model.category {
-            models::ModelCategory::Chat => self.load_chat_model(model, weights_path),
+            models::ModelCategory::Chat => self.load_chat_model(model, model_dir),
             models::ModelCategory::Complete | models::ModelCategory::Instruct => {
-                self.load_completion_model(model, weights_path)
+                self.load_completion_model(model, model_dir)
             }
-            models::ModelCategory::BiEncoder => self.load_bi_encoder_model(model, weights_path),
-            models::ModelCategory::CrossEncoder => {
-                self.load_cross_encoder_model(model, weights_path)
-            }
+            models::ModelCategory::BiEncoder => self.load_bi_encoder_model(model, model_dir),
+            models::ModelCategory::CrossEncoder => self.load_cross_encoder_model(model, model_dir),
         }
     }
 
     fn load_chat_model(
         &self,
         model: &ModelDefinition,
-        weights_path: Option<PathBuf>,
+        model_dir: Option<PathBuf>,
     ) -> Result<(), Report<ModelError>> {
         assert_eq!(model.category, models::ModelCategory::Chat);
 
@@ -84,18 +80,25 @@ impl SearchStore {
             ModelParams::OpenaiChat | ModelParams::OpenaiCompletions => {
                 todo!()
             }
-            ModelParams::Ggml(ModelTypeAndLocation {
-                model: model_name, ..
+            ModelParams::Ggml(GgmlModelParams {
+                model: model_name,
+                location,
+                tokenizer,
+                ..
             }) => {
-                let weights_path = weights_path
+                let model_dir = model_dir
                     .ok_or(ModelError::LoadingError)
                     .into_report()
                     .attach_printable("No path provided for GGML model")?;
+
+                let weights_path = self.model_cache.get_cache_path_for_model(location);
+                let tokenizer = tokenizer.as_ref().map(|_| model_dir.join("tokenizer.json"));
 
                 Arc::new(GgmlChatModel::new(
                     model.name.clone(),
                     model_name,
                     &weights_path,
+                    tokenizer,
                 )?)
             }
             ModelParams::RustBert(location) => todo!(),
@@ -117,7 +120,7 @@ impl SearchStore {
     fn load_completion_model(
         &self,
         model: &ModelDefinition,
-        weights_path: Option<PathBuf>,
+        model_dir: Option<PathBuf>,
     ) -> Result<(), Report<ModelError>> {
         assert!(
             model.category == models::ModelCategory::Chat
@@ -129,18 +132,25 @@ impl SearchStore {
             ModelParams::OpenaiChat | ModelParams::OpenaiCompletions => {
                 todo!()
             }
-            ModelParams::Ggml(ModelTypeAndLocation {
-                model: model_name, ..
+            ModelParams::Ggml(GgmlModelParams {
+                model: model_name,
+                location,
+                tokenizer,
+                ..
             }) => {
-                let weights_path = weights_path
+                let model_dir = model_dir
                     .ok_or(ModelError::LoadingError)
                     .into_report()
                     .attach_printable("No path provided for GGML model")?;
+
+                let weights_path = self.model_cache.get_cache_path_for_model(location);
+                let tokenizer = tokenizer.as_ref().map(|_| model_dir.join("tokenizer.json"));
 
                 Arc::new(GgmlCompletionModel::new(
                     model.name.clone(),
                     model_name,
                     &weights_path,
+                    tokenizer,
                 )?)
             }
             ModelParams::RustBert(location) => todo!(),

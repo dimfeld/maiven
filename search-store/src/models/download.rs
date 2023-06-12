@@ -11,6 +11,8 @@ use std::{
 use thiserror::Error;
 use tracing::info;
 
+use super::{LocationAndPattern, ModelParams};
+
 #[derive(Error, Debug)]
 pub enum DownloadError {
     #[error("Failed writing to disk: {0}")]
@@ -81,14 +83,13 @@ impl ModelCache {
         self.cache_path.join(model_remote)
     }
 
-    pub fn needs_download(&self, model_remote: &str) -> bool {
-        let path = self.get_cache_dir_for_model(model_remote);
+    fn needs_download(&self, path: &Path) -> bool {
         if !path.exists() {
             return true;
         }
 
-        let Some(manifest) = read_manifest(&path) else {
-            return false;
+        let Some(manifest) = read_manifest(path) else {
+            return true;
         };
 
         for file in manifest.files {
@@ -102,51 +103,84 @@ impl ModelCache {
     }
 
     /// Check if the files for this model have been downloaded, and download them if needed.
-    pub fn download_if_needed(&self, model_remote: &str) -> Result<PathBuf, Report<DownloadError>> {
-        let path = self.get_cache_path_for_model(model_remote);
-        if path.exists() {
-            return Ok(path);
+    pub fn download_if_needed(
+        &self,
+        params: &ModelParams,
+    ) -> Result<Option<PathBuf>, Report<DownloadError>> {
+        let Some(dir) = params.location().map(|l| self.get_cache_dir_for_model(l)) else {
+            return Ok(None);
+        };
+
+        if !self.needs_download(&dir) {
+            return Ok(Some(dir));
         }
 
-        self.download(model_remote, &self.get_cache_dir_for_model(model_remote))?;
+        self.download(params, &dir)?;
 
-        Ok(path)
+        Ok(Some(dir))
     }
 
     /// Delete any existing cached files and redownload them.
-    pub fn force_download(&self, model_remote: &str) -> Result<PathBuf, Report<DownloadError>> {
-        let path = self.get_cache_dir_for_model(model_remote);
+    pub fn force_download(
+        &self,
+        params: &ModelParams,
+    ) -> Result<Option<PathBuf>, Report<DownloadError>> {
+        let Some(dir) = params.location().map(|l| self.get_cache_dir_for_model(l)) else {
+            return Ok(None);
+        };
 
-        self.download(model_remote, &path)?;
+        self.download(params, &dir)?;
 
-        Ok(self.get_cache_path_for_model(model_remote))
+        Ok(Some(dir))
+    }
+
+    fn download_location_with_pattern(
+        &self,
+        loc: &LocationAndPattern,
+        destination_path: &Path,
+    ) -> Result<Vec<String>, Report<DownloadError>> {
+        if let Some(model_name) = loc.location.strip_prefix("huggingface:") {
+            huggingface::download_model(&self.client, model_name, destination_path, &loc.pattern)
+        } else if loc.location.starts_with("http:") || loc.location.starts_with("https:") {
+            let filename =
+                loc.location.rsplit('/').next().ok_or_else(|| {
+                    Report::new(DownloadError::InvalidLocation(loc.location.clone()))
+                })?;
+            let path = destination_path.join(filename);
+            download_file(&self.client, &loc.location, &path)?;
+            Ok(vec![filename.to_string()])
+        } else {
+            return Err(Report::new(DownloadError::UnknownLocationType))
+                .attach_printable_lazy(|| loc.location.clone());
+        }
     }
 
     fn download(
         &self,
-        model_remote: &str,
+        params: &ModelParams,
         destination_path: &Path,
     ) -> Result<(), Report<DownloadError>> {
         if destination_path.exists() {
             std::fs::remove_dir_all(destination_path).map_err(DownloadError::from)?;
         }
 
-        let manifest_files;
+        let mut manifest_files = Vec::new();
 
         std::fs::create_dir_all(destination_path).map_err(DownloadError::from)?;
-        if let Some(model_name) = model_remote.strip_prefix("huggingface:") {
-            manifest_files =
-                huggingface::download_model(&self.client, model_name, destination_path)?;
-        } else if model_remote.starts_with("http:") || model_remote.starts_with("https:") {
-            let filename = model_remote.rsplit('/').next().ok_or_else(|| {
-                Report::new(DownloadError::InvalidLocation(model_remote.to_string()))
-            })?;
-            let path = destination_path.join(filename);
-            download_file(&self.client, model_remote, &path)?;
-            manifest_files = vec![filename.to_string()];
-        } else {
-            return Err(Report::new(DownloadError::UnknownLocationType))
-                .attach_printable_lazy(|| model_remote.to_string());
+
+        if let Some(location) = params.location() {
+            manifest_files.extend(self.download_location_with_pattern(
+                &LocationAndPattern {
+                    location: location.to_string(),
+                    pattern: String::new(),
+                },
+                destination_path,
+            )?);
+        }
+
+        for additional in params.additional_files() {
+            manifest_files
+                .extend(self.download_location_with_pattern(&additional, destination_path)?);
         }
 
         let manifest = Manifest {

@@ -8,6 +8,7 @@ use super::{
     rust_bert_sentence_embeddings::{
         create_model, SentenceEmbeddingsEncoder, SentenceEmbeddingsTokenizer,
     },
+    ModelParams,
 };
 
 pub struct BiEncoderModel {
@@ -36,7 +37,16 @@ struct WorkerEncodeMessage {
 }
 
 impl BiEncoderModel {
-    pub fn new(name: String, model_dir: &Path) -> Result<Self, Report<ModelError>> {
+    pub fn new(
+        name: String,
+        params: &ModelParams,
+        model_dir: Option<&Path>,
+    ) -> Result<Self, Report<ModelError>> {
+        let Some(model_dir) = model_dir else {
+            return Err(ModelError::LoadingError).into_report()
+                .attach_printable("Model directory not provided");
+        };
+
         let (tokenizer, model) = create_model(model_dir)?;
 
         let (tx, rx) = flume::bounded(10);
@@ -108,17 +118,22 @@ fn worker_thread(worker_rx: flume::Receiver<WorkerMessage>, model: SentenceEmbed
 
 #[cfg(test)]
 mod test {
-    use crate::models::download::ModelCache;
+    use crate::models::{download::ModelCache, ModelLocation, ModelParams};
 
     #[test]
     fn test_model() {
         dotenvy::dotenv().ok();
         let cache = ModelCache::from_env().expect("Creating model cache");
+
+        let params = ModelParams::RustBert(ModelLocation {
+            location: "huggingface:sentence-transformers/all-MiniLM-L6-v2".to_string(),
+        });
+
         let model_path = cache
-            .download_if_needed("huggingface:sentence-transformers/all-MiniLM-L6-v2")
+            .download_if_needed(&params)
             .expect("Downloading model");
-        let model =
-            super::BiEncoderModel::new("test".to_string(), &model_path).expect("loading model");
+        let model = super::BiEncoderModel::new("test".to_string(), &params, model_path.as_deref())
+            .expect("loading model");
         let encoding = model
             .encode(&["hello world", "goodbye world"])
             .expect("encoding");
