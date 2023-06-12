@@ -65,6 +65,13 @@ INSERT INTO models (id, name, category, params)
       'code', 'rust-bert',
       'location', 'huggingface:sentence-transformers/all-MiniLM-L6-v2'
     )
+  ),
+  (12, 'Nous-Hermes-13B-q4_1', 'instruct',
+    jsonb_build_object(
+      'code', 'ggml',
+      'model', 'llama',
+      'location', 'https://huggingface.co/TheBloke/Nous-Hermes-13B-GGML/resolve/main/nous-hermes-13b.ggmlv3.q4_1.bin'
+    )
   )
   ;
 
