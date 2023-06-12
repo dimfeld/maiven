@@ -6,6 +6,8 @@ pub enum ModelError {
     WorkerClosed,
     #[error("Model error")]
     ModelFailure,
+    #[error("Invalid parameter value")]
+    ParameterError,
     #[error("Failed to load model")]
     LoadingError,
     #[error("Unsupported model type {0}")]

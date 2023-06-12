@@ -10,13 +10,17 @@ use error_stack::{IntoReport, Report, ResultExt};
 use models::{
     bi_encoder::BiEncoderModel,
     chat::ChatModel,
+    completion::CompletionModel,
     download::{DownloadError, ModelCache},
-    CompletionModel, CrossEncoderModel, ModelDefinition, ModelError,
+    CrossEncoderModel, ModelDefinition, ModelError,
 };
 use parking_lot::RwLock;
 use sqlx::PgPool;
 
-use crate::models::{chat::ggml_chat::GgmlChatModel, ModelParams, ModelTypeAndLocation};
+use crate::models::{
+    chat::ggml_chat::GgmlChatModel, completion::ggml_completion::GgmlCompletionModel, ModelParams,
+    ModelTypeAndLocation,
+};
 
 pub struct LoadedModel<T: ?Sized> {
     pub id: i32,
@@ -30,7 +34,7 @@ pub struct SearchStore {
     pub file_storage_location: String,
 
     pub loaded_chat_models: RwLock<Vec<LoadedModel<dyn ChatModel>>>,
-    pub loaded_completion_models: RwLock<Vec<LoadedModel<CompletionModel>>>,
+    pub loaded_completion_models: RwLock<Vec<LoadedModel<dyn CompletionModel>>>,
 
     loaded_bi_encoders: RwLock<Vec<LoadedModel<BiEncoderModel>>>,
     loaded_cross_encoders: RwLock<Vec<LoadedModel<CrossEncoderModel>>>,
@@ -88,10 +92,19 @@ impl SearchStore {
                     .into_report()
                     .attach_printable("No path provided for GGML model")?;
 
-                Arc::new(GgmlChatModel::new(model_name, &weights_path)?)
+                Arc::new(GgmlChatModel::new(
+                    model.name.clone(),
+                    model_name,
+                    &weights_path,
+                )?)
             }
             ModelParams::RustBert(location) => todo!(),
         };
+
+        self.loaded_completion_models.write().push(LoadedModel {
+            id: model.id,
+            model: loaded.clone(),
+        });
 
         self.loaded_chat_models.write().push(LoadedModel {
             id: model.id,
@@ -106,8 +119,39 @@ impl SearchStore {
         model: &ModelDefinition,
         weights_path: Option<PathBuf>,
     ) -> Result<(), Report<ModelError>> {
-        assert_eq!(model.category, models::ModelCategory::Complete);
-        todo!()
+        assert!(
+            model.category == models::ModelCategory::Chat
+                || model.category == models::ModelCategory::Complete
+                || model.category == models::ModelCategory::Instruct
+        );
+
+        let loaded = match &model.params {
+            ModelParams::OpenaiChat | ModelParams::OpenaiCompletions => {
+                todo!()
+            }
+            ModelParams::Ggml(ModelTypeAndLocation {
+                model: model_name, ..
+            }) => {
+                let weights_path = weights_path
+                    .ok_or(ModelError::LoadingError)
+                    .into_report()
+                    .attach_printable("No path provided for GGML model")?;
+
+                Arc::new(GgmlCompletionModel::new(
+                    model.name.clone(),
+                    model_name,
+                    &weights_path,
+                )?)
+            }
+            ModelParams::RustBert(location) => todo!(),
+        };
+
+        self.loaded_completion_models.write().push(LoadedModel {
+            id: model.id,
+            model: loaded,
+        });
+
+        Ok(())
     }
 
     fn load_bi_encoder_model(
@@ -152,4 +196,18 @@ impl SearchStore {
     }
 }
 
-// load models
+pub fn check_temperature(temperature: &Option<f32>) -> Result<(), Report<ModelError>> {
+    if let Some(temp) = temperature {
+        if *temp <= 0.0 {
+            return Err(ModelError::ParameterError)
+                .into_report()
+                .attach_printable("Temperature must be greater than 0");
+        } else if *temp > 2.0 {
+            return Err(ModelError::ParameterError)
+                .into_report()
+                .attach_printable("Temperature must be less than 2");
+        }
+    }
+
+    Ok(())
+}

@@ -9,6 +9,7 @@ use std::{
     path::{Path, PathBuf},
 };
 use thiserror::Error;
+use tracing::info;
 
 #[derive(Error, Debug)]
 pub enum DownloadError {
@@ -168,6 +169,8 @@ fn download_file(client: &Client, url: &str, destination: &Path) -> Result<(), D
         .parent()
         .expect("Path has a directory and filename");
     std::fs::create_dir_all(dir)?;
+
+    info!("Downloading {} to {}", url, destination.display());
 
     let dl = || -> Result<(), DownloadError> {
         let mut response = client.get(url).send()?.error_for_status()?;

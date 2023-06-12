@@ -4,9 +4,9 @@ pub mod openai_chat;
 use error_stack::Report;
 use serde::{Deserialize, Serialize};
 
-use super::ModelError;
+use super::{completion::CompletionModel, ModelError};
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "lowercase")]
 pub enum ChatRole {
     System,
@@ -14,7 +14,7 @@ pub enum ChatRole {
     Assistant,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct ChatMessage {
     pub role: ChatRole,
     pub content: String,
@@ -36,12 +36,12 @@ impl ChatMessage {
     }
 }
 
-#[derive(Serialize, Deserialize, Default)]
+#[derive(Serialize, Deserialize, Debug, Default)]
 pub struct ChatSubmission {
     pub messages: Vec<ChatMessage>,
     pub temperature: Option<f32>,
 }
 
-pub trait ChatModel: Send + Sync {
+pub trait ChatModel: CompletionModel + Send + Sync {
     fn chat(&self, submission: ChatSubmission) -> Result<ChatMessage, Report<ModelError>>;
 }

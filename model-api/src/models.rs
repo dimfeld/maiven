@@ -3,11 +3,13 @@ use axum::{
     routing::{get, post},
     Json, Router,
 };
-use error_stack::{IntoReport, ResultExt};
+use error_stack::{ensure, IntoReport, ResultExt};
 use maiven_search_store::{
+    check_temperature,
     db::models,
     models::{
         chat::{ChatMessage, ChatRole, ChatSubmission},
+        completion::CompletionSubmission,
         ModelDefinition,
     },
 };
@@ -79,6 +81,11 @@ struct ChatBody {
     temperature: Option<f32>,
 }
 
+#[derive(Serialize)]
+struct CompletionResult {
+    response: String,
+}
+
 async fn run_chat_model(
     State(state): AppState,
     Path(id): Path<i32>,
@@ -94,14 +101,28 @@ async fn run_chat_model(
         .model
         .clone();
 
+    check_temperature(&body.temperature)
+        .change_context(ApiError::ArgError("temperature".to_string()))?;
+
+    let mut messages = Vec::with_capacity(2);
+    if let Some(system) = body.system {
+        messages.push(ChatMessage {
+            role: ChatRole::System,
+            content: system,
+            name: None,
+        });
+    }
+
+    messages.push(ChatMessage {
+        role: ChatRole::User,
+        content: body.prompt,
+        name: None,
+    });
+
     let answer = model
         .chat(ChatSubmission {
             temperature: body.temperature,
-            messages: vec![ChatMessage {
-                role: ChatRole::User,
-                content: body.prompt,
-                name: None,
-            }],
+            messages,
         })
         .passthrough_error()?;
 
@@ -110,9 +131,33 @@ async fn run_chat_model(
     }))
 }
 
+async fn run_completion_model(
+    State(state): AppState,
+    Path(id): Path<i32>,
+    Json(body): Json<CompletionSubmission>,
+) -> ApiResult<CompletionResult> {
+    let model = state
+        .search_store
+        .loaded_completion_models
+        .read()
+        .iter()
+        .find(|model| model.id == id)
+        .ok_or(ApiError::ModelNotLoaded("completion"))?
+        .model
+        .clone();
+
+    check_temperature(&body.temperature)
+        .change_context(ApiError::ArgError("temperature".to_string()))?;
+
+    let answer = model.complete(body).passthrough_error()?;
+
+    Ok(Json(CompletionResult { response: answer }))
+}
+
 pub fn create_router() -> Router<AppStateContents> {
     Router::new()
         .route("/", get(list_models))
         .route("/:id/load", post(load_model))
         .route("/:id/chat", post(run_chat_model))
+        .route("/:id/complete", post(run_completion_model))
 }

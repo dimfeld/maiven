@@ -19,6 +19,8 @@ where
     let formatting_layer = HierarchicalLayer::new(2)
         .with_bracketed_fields(true)
         .with_targets(true)
+        .with_verbose_entry(true)
+        .with_verbose_exit(true)
         .with_writer(sink);
     let subscriber = Registry::default().with(env_filter).with(formatting_layer);
     set_global_default(subscriber).expect("Setting subscriber");

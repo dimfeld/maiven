@@ -3,12 +3,14 @@ use std::{path::Path, sync::Arc};
 use error_stack::{IntoReport, Report, ResultExt};
 use llm::{InferenceParameters, InferenceSessionConfig, OutputRequest};
 use rayon::prelude::*;
+use tracing::{info, instrument};
 
-use crate::models::{ggml, ModelError};
+use crate::models::{completion::CompletionModel, ggml, ModelError};
 
 use super::{ChatModel, ChatRole, ChatSubmission};
 
 pub struct GgmlChatModel {
+    name: String,
     model: Box<dyn llm::Model>,
     start_token: Option<llm::TokenId>,
     end_token: Option<llm::TokenId>,
@@ -16,13 +18,18 @@ pub struct GgmlChatModel {
 }
 
 impl GgmlChatModel {
-    pub fn new(model_type: &str, weights_path: &Path) -> Result<Self, Report<ModelError>> {
+    pub fn new(
+        name: String,
+        model_type: &str,
+        weights_path: &Path,
+    ) -> Result<Self, Report<ModelError>> {
         let model = ggml::load_ggml_model(model_type, weights_path)?;
         let vocab = model.vocabulary();
         let start_token = vocab.id("<|im_start|>".as_bytes());
         let end_token = vocab.id("<|im_end|>".as_bytes());
         let newline_token = vocab.id("\n".as_bytes()).unwrap();
         Ok(Self {
+            name,
             model,
             start_token,
             end_token,
@@ -32,6 +39,7 @@ impl GgmlChatModel {
 }
 
 impl ChatModel for GgmlChatModel {
+    #[instrument(skip(self), fields(name = %self.name))]
     fn chat(&self, submission: ChatSubmission) -> Result<super::ChatMessage, Report<ModelError>> {
         let vocab = self.model.vocabulary();
 
@@ -73,15 +81,9 @@ impl ChatModel for GgmlChatModel {
             tokens.push(self.newline_token);
         }
 
-        let mut session = self.model.start_session(InferenceSessionConfig::default());
-        let mut output = OutputRequest {
-            all_logits: None,
-            embeddings: None,
-        };
-
         let temperature = submission.temperature.unwrap_or(0.3);
 
-        let mut params = InferenceParameters {
+        let params = InferenceParameters {
             sampler: Arc::new(llm::samplers::TopPTopK {
                 temperature,
                 ..Default::default()
@@ -89,11 +91,17 @@ impl ChatModel for GgmlChatModel {
             ..Default::default()
         };
 
-        tracing::info!(tokens=?tokens, "Sending tokens to model");
+        let mut output_tokens = Vec::new();
+
+        let mut session = self.model.start_session(InferenceSessionConfig::default());
+        let mut output = OutputRequest {
+            all_logits: None,
+            embeddings: None,
+        };
         self.model
             .evaluate(&mut session, &params, &tokens, &mut output);
+        info!(input_tokens=%tokens.len(), "Evaluated input");
 
-        let mut output_tokens = Vec::new();
         while let Ok(token) = session.infer_next_token(
             self.model.as_ref(),
             &params,
@@ -105,10 +113,22 @@ impl ChatModel for GgmlChatModel {
             }
         }
 
+        info!(output_tokens=%output_tokens.len(), "Done");
+
         Ok(super::ChatMessage {
             role: ChatRole::Assistant,
             content: String::from_utf8_lossy(&output_tokens).to_string(),
             name: None,
         })
+    }
+}
+
+impl CompletionModel for GgmlChatModel {
+    #[instrument(skip(self), fields(name = %self.name))]
+    fn complete(
+        &self,
+        submission: crate::models::completion::CompletionSubmission,
+    ) -> Result<String, Report<ModelError>> {
+        self.model.complete(submission)
     }
 }

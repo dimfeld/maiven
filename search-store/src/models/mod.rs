@@ -6,6 +6,7 @@ pub use self::error::ModelError;
 
 pub mod bi_encoder;
 pub mod chat;
+pub mod completion;
 pub mod download;
 pub mod error;
 mod ggml;
@@ -62,16 +63,6 @@ pub struct ModelLocation {
 pub struct ModelTypeAndLocation {
     pub model: String,
     pub location: String,
-}
-
-/// Both instruct and complete models fall under `CompletionModel`. The difference is only to inform the
-/// caller in how to prompt the model.
-pub struct CompletionModel {}
-
-/// Use a chat or completion model in a generic way.
-pub trait TextGenerationModel {
-    /// Generate text from a prompt.
-    fn generate(&self, prompt: &str) -> Result<String, ModelError>;
 }
 
 pub struct CrossEncoderModel {}
