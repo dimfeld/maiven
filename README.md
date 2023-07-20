@@ -2,6 +2,8 @@
 
 Yet another AI-enabled research and chat interface, with an emphasis on organizing and better understanding your own content.
 
+Current status: Model downloading and execution is working. Project is mostly on hold for now.
+
 ## Feature Ideas
 
 - [ ] Import files from local disk for search
